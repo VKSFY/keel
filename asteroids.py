@@ -1,12 +1,12 @@
-"""asteroids.py — Asteroids in PyGE (v2: wrap + text fixes).
+"""asteroids.py — Asteroids in Keel (v2: wrap + text fixes).
 Run with:  python asteroids.py
 Arrows rotate / thrust, Space fires, R restarts on game over, Esc quits.
 """
 import math, random
-import pyge
-from pyge.physics import setup_physics_2d
-from pyge.renderer import setup_renderer_2d
-from pyge.text import BUILTIN_FONT, load_font, set_label_visible, set_text, setup_text
+import keel
+from keel.physics import setup_physics_2d
+from keel.renderer import setup_renderer_2d
+from keel.text import BUILTIN_FONT, load_font, set_label_visible, set_text, setup_text
 
 WIDTH, HEIGHT = 800, 600
 SHIP_ROT_DEG_PER_S = 180.0
@@ -18,7 +18,7 @@ FIRE_COOLDOWN = 0.18
 RESPAWN_DELAY = 2.0
 INVINCIBLE_TIME = 2.0
 NOSE_OFFSET = 18.0
-# Body types: PyGE has DYNAMIC=0, STATIC=1, KINEMATIC=2. pymunk's collision
+# Body types: Keel has DYNAMIC=0, STATIC=1, KINEMATIC=2. pymunk's collision
 # callbacks DO NOT fire for KINEMATIC-vs-KINEMATIC pairs, so bullets and
 # asteroids must be DYNAMIC for CollisionEvent2D to reach our handler.
 DYNAMIC = 0
@@ -32,21 +32,21 @@ MASK_BULLET = CAT_ASTEROID                    # bullets see only asteroids
 ASTEROID_RADIUS = {3: 40.0, 2: 22.0, 1: 12.0}
 ASTEROID_PX    = {3: 80.0, 2: 44.0, 1: 24.0}
 ASTEROID_SCORE = {3: 20, 2: 50, 1: 100}
-@pyge.component
+@keel.component
 class Ship:
     rotation_speed: float = SHIP_ROT_DEG_PER_S
     thrust: float = SHIP_THRUST
     invincible_timer: float = 0.0
     fire_cooldown: float = 0.0
-@pyge.component
+@keel.component
 class Bullet:
     lifetime: float = BULLET_LIFETIME
-@pyge.component
+@keel.component
 class Asteroid:
     size: int = 3
     vel_x: float = 0.0
     vel_y: float = 0.0
-@pyge.component
+@keel.component
 class GameState:
     score: int = 0
     lives: int = 3
@@ -55,7 +55,7 @@ class GameState:
     respawn_timer: float = 0.0
     ship_alive: bool = True
     restart_pending: bool = False
-app = pyge.App(title="Asteroids", width=WIDTH, height=HEIGHT)
+app = keel.App(title="Asteroids", width=WIDTH, height=HEIGHT)
 setup_renderer_2d(app)                                    # MUST precede setup_text
 phys = setup_physics_2d(app, gravity_y=0.0)
 text_setup = setup_text(app)
@@ -82,30 +82,30 @@ def _gs(world):
     for (g,) in world.query(GameState):
         if len(g) > 0: return g
     return None
-# TextLabel visibility now goes through pyge.text.set_label_visible (wraps
+# TextLabel visibility now goes through keel.text.set_label_visible (wraps
 # world.set under the hood). The bespoke archetype-surgery helper this file
 # used to carry is gone.
 
 def spawn_ship(world, _phys):
     SHIP_VEL["x"] = SHIP_VEL["y"] = 0.0
     eid = world.spawn(
-        pyge.Transform2D(x=WIDTH/2, y=HEIGHT/2, rotation=0.0),
-        pyge.RigidBody2D(mass=1.0, body_type=KINEMATIC),
-        pyge.Collider2D(shape_type=0, radius=14.0, elasticity=0.0, friction=0.0,
+        keel.Transform2D(x=WIDTH/2, y=HEIGHT/2, rotation=0.0),
+        keel.RigidBody2D(mass=1.0, body_type=KINEMATIC),
+        keel.Collider2D(shape_type=0, radius=14.0, elasticity=0.0, friction=0.0,
                         category_bits=CAT_SHIP, mask_bits=MASK_SHIP),
-        pyge.Sprite(texture_id=0, width=28.0, height=28.0, r=1.0, g=1.0, b=1.0),
+        keel.Sprite(texture_id=0, width=28.0, height=28.0, r=1.0, g=1.0, b=1.0),
         Ship(invincible_timer=INVINCIBLE_TIME))
     world.flush()
     SHIP_ENTITIES.add(eid)
     return eid
 def spawn_bullet(world, x, y, vx, vy):
     eid = world.spawn(
-        pyge.Transform2D(x=x, y=y),
+        keel.Transform2D(x=x, y=y),
         # DYNAMIC so the bullet-vs-dynamic-asteroid collision callback fires.
-        pyge.RigidBody2D(mass=0.1, body_type=DYNAMIC),
-        pyge.Collider2D(shape_type=0, radius=3.0, elasticity=0.0, friction=0.0,
+        keel.RigidBody2D(mass=0.1, body_type=DYNAMIC),
+        keel.Collider2D(shape_type=0, radius=3.0, elasticity=0.0, friction=0.0,
                         category_bits=CAT_BULLET, mask_bits=MASK_BULLET),
-        pyge.Sprite(texture_id=0, width=6.0, height=6.0, r=1.0, g=0.85, b=0.4),
+        keel.Sprite(texture_id=0, width=6.0, height=6.0, r=1.0, g=0.85, b=0.4),
         Bullet(lifetime=BULLET_LIFETIME))
     world.flush()
     BULLET_VEL[eid] = (vx, vy)
@@ -114,14 +114,14 @@ def spawn_bullet(world, x, y, vx, vy):
 def _spawn_asteroid(world, size, x, y, vx, vy):
     r, s = ASTEROID_RADIUS[size], ASTEROID_PX[size]
     eid = world.spawn(
-        pyge.Transform2D(x=x, y=y, rotation=random.uniform(0.0, math.tau)),
+        keel.Transform2D(x=x, y=y, rotation=random.uniform(0.0, math.tau)),
         # DYNAMIC because kinematic-vs-kinematic pairs don't emit collision
         # events in pymunk. apply_asteroid_vel re-pushes the stored velocity
         # each frame so the asteroid keeps its constant drift speed.
-        pyge.RigidBody2D(mass=float(size), body_type=DYNAMIC),
-        pyge.Collider2D(shape_type=0, radius=r, elasticity=0.0, friction=0.0,
+        keel.RigidBody2D(mass=float(size), body_type=DYNAMIC),
+        keel.Collider2D(shape_type=0, radius=r, elasticity=0.0, friction=0.0,
                         category_bits=CAT_ASTEROID, mask_bits=MASK_ASTEROID),
-        pyge.Sprite(texture_id=0, width=s, height=s, r=0.78, g=0.78, b=0.82),
+        keel.Sprite(texture_id=0, width=s, height=s, r=0.78, g=0.78, b=0.82),
         Asteroid(size=size, vel_x=vx, vel_y=vy))
     world.flush()
     ASTEROID_ENTITIES.add(eid)
@@ -142,15 +142,15 @@ app.world.spawn(GameState())
 # Transform2D.y for a TextLabel is the BASELINE, so we need to push it
 # down by ~ascender (~25 px at size 28) to keep the top of the glyphs on screen.
 SCORE_LABEL = app.world.spawn(
-    pyge.Transform2D(x=10.0, y=35.0), pyge.TextLabel(font_id=FONT_ID))
+    keel.Transform2D(x=10.0, y=35.0), keel.TextLabel(font_id=FONT_ID))
 LIVES_LABEL = app.world.spawn(
-    pyge.Transform2D(x=590.0, y=35.0), pyge.TextLabel(font_id=FONT_ID))
+    keel.Transform2D(x=590.0, y=35.0), keel.TextLabel(font_id=FONT_ID))
 GAMEOVER_LABEL = app.world.spawn(
-    pyge.Transform2D(x=280.0, y=270.0),
-    pyge.TextLabel(font_id=FONT_ID, r=1.0, g=1.0, b=0.2, visible=False))
+    keel.Transform2D(x=280.0, y=270.0),
+    keel.TextLabel(font_id=FONT_ID, r=1.0, g=1.0, b=0.2, visible=False))
 RESTART_LABEL = app.world.spawn(
-    pyge.Transform2D(x=210.0, y=320.0),
-    pyge.TextLabel(font_id=FONT_ID, r=0.8, g=0.8, b=0.8, visible=False))
+    keel.Transform2D(x=210.0, y=320.0),
+    keel.TextLabel(font_id=FONT_ID, r=0.8, g=0.8, b=0.8, visible=False))
 app.world.flush()
 set_text(SCORE_LABEL, "Score: 0")
 set_text(LIVES_LABEL, "Lives: 3")
@@ -158,34 +158,34 @@ set_text(GAMEOVER_LABEL, "GAME OVER")
 set_text(RESTART_LABEL, "Press R to restart")
 spawn_ship(app.world, phys)
 spawn_wave(app.world, phys, 1)
-@app.system(pyge.Phase.PRE_UPDATE)
+@app.system(keel.Phase.PRE_UPDATE)
 def input_system(world, dt):
-    if app.input.is_key_down(pyge.KEY_ESCAPE): app.window.close()
+    if app.input.is_key_down(keel.KEY_ESCAPE): app.window.close()
     g = _gs(world)
     if g is None: return
     if g["game_over"][0]:
-        if app.input.is_key_down(pyge.KEY_R): g["restart_pending"][0] = True
+        if app.input.is_key_down(keel.KEY_R): g["restart_pending"][0] = True
         return
     if not g["ship_alive"][0]: return
-    for ts, ships in world.query(pyge.Transform2D, Ship):
+    for ts, ships in world.query(keel.Transform2D, Ship):
         for i in range(len(ts)):
             ships["fire_cooldown"][i] = max(0.0, ships["fire_cooldown"][i] - dt)
             rps = math.radians(float(ships["rotation_speed"][i]))
-            if app.input.is_key_down(pyge.KEY_LEFT):  ts["rotation"][i] += rps * dt
-            if app.input.is_key_down(pyge.KEY_RIGHT): ts["rotation"][i] -= rps * dt
+            if app.input.is_key_down(keel.KEY_LEFT):  ts["rotation"][i] += rps * dt
+            if app.input.is_key_down(keel.KEY_RIGHT): ts["rotation"][i] -= rps * dt
             angle = float(ts["rotation"][i])       # rotation 0 = +x
             cx, cy = math.cos(angle), math.sin(angle)
-            if app.input.is_key_down(pyge.KEY_UP):
+            if app.input.is_key_down(keel.KEY_UP):
                 SHIP_VEL["x"] += cx * float(ships["thrust"][i]) * dt
                 SHIP_VEL["y"] += cy * float(ships["thrust"][i]) * dt
-            if app.input.is_key_down(pyge.KEY_SPACE) and ships["fire_cooldown"][i] <= 0.0:
+            if app.input.is_key_down(keel.KEY_SPACE) and ships["fire_cooldown"][i] <= 0.0:
                 bx = float(ts["x"][i]) + cx * NOSE_OFFSET
                 by = float(ts["y"][i]) + cy * NOSE_OFFSET
                 spawn_bullet(world, bx, by,
                              cx * BULLET_SPEED + SHIP_VEL["x"],
                              cy * BULLET_SPEED + SHIP_VEL["y"])
                 ships["fire_cooldown"][i] = FIRE_COOLDOWN
-@app.system(pyge.Phase.PRE_UPDATE)
+@app.system(keel.Phase.PRE_UPDATE)
 def apply_ship_vel(world, dt):
     s2 = SHIP_VEL["x"]**2 + SHIP_VEL["y"]**2
     if s2 > SHIP_MAX_SPEED * SHIP_MAX_SPEED:
@@ -194,7 +194,7 @@ def apply_ship_vel(world, dt):
     for sid in SHIP_ENTITIES:
         if world.is_alive(sid):
             phys.set_velocity(sid, SHIP_VEL["x"], SHIP_VEL["y"])
-@app.system(pyge.Phase.PRE_UPDATE)
+@app.system(keel.Phase.PRE_UPDATE)
 def apply_asteroid_vel(world, dt):
     for arch in world.query(Asteroid).archetypes():
         n = arch.length
@@ -202,33 +202,33 @@ def apply_asteroid_vel(world, dt):
         for i in range(n):
             phys.set_velocity(int(arch.entities[i]),
                               float(a["vel_x"][i]), float(a["vel_y"][i]))
-@app.system(pyge.Phase.PRE_UPDATE)
+@app.system(keel.Phase.PRE_UPDATE)
 def apply_bullet_vel(world, dt):
     for bid, v in list(BULLET_VEL.items()):
         if world.is_alive(bid):
             phys.set_velocity(bid, v[0], v[1])
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def wrap_system(world, dt):
     """Wrap ship + asteroids at ZERO margin; bullets are DESPAWNED on exit."""
     # Wrap ship + asteroids; sync both Transform2D and pymunk body.
     for marker in (Ship, Asteroid):
-        for arch in world.query(pyge.Transform2D, marker).archetypes():
+        for arch in world.query(keel.Transform2D, marker).archetypes():
             n = arch.length
-            t = arch.columns[pyge.Transform2D][:n]
+            t = arch.columns[keel.Transform2D][:n]
             for i in range(n):
                 x, y = float(t["x"][i]), float(t["y"][i])
                 nx, ny = wrap(x, y)
                 if nx != x or ny != y:
                     phys.set_position(int(arch.entities[i]), nx, ny)
     # Bullets that leave the screen die on the spot.
-    for arch in world.query(pyge.Transform2D, Bullet).archetypes():
+    for arch in world.query(keel.Transform2D, Bullet).archetypes():
         n = arch.length
-        t = arch.columns[pyge.Transform2D][:n]
+        t = arch.columns[keel.Transform2D][:n]
         for i in range(n):
             x, y = float(t["x"][i]), float(t["y"][i])
             if x < 0.0 or x > WIDTH or y < 0.0 or y > HEIGHT:
                 queue_despawn(int(arch.entities[i]))
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def bullet_lifetime(world, dt):
     for arch in world.query(Bullet).archetypes():
         n = arch.length
@@ -237,7 +237,7 @@ def bullet_lifetime(world, dt):
             bs["lifetime"][i] -= dt
             if bs["lifetime"][i] <= 0.0:
                 queue_despawn(int(arch.entities[i]))
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def respawn_system(world, dt):
     g = _gs(world)
     if g is None or g["game_over"][0] or g["restart_pending"][0]: return
@@ -254,16 +254,16 @@ def respawn_system(world, dt):
     spawn_ship(world, phys)
     g["ship_alive"][0] = True
     g["respawn_timer"][0] = 0.0
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def wave_system(world, dt):
     g = _gs(world)
     if g is None or g["game_over"][0] or g["restart_pending"][0]: return
     if len(ASTEROID_ENTITIES) > 0: return
     g["wave"][0] += 1
     spawn_wave(world, phys, int(g["wave"][0]))
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def invincibility_system(world, dt):
-    for ships, sprites in world.query(Ship, pyge.Sprite):
+    for ships, sprites in world.query(Ship, keel.Sprite):
         for i in range(len(ships)):
             t = ships["invincible_timer"][i]
             if t > 0.0:
@@ -272,11 +272,11 @@ def invincibility_system(world, dt):
                 sprites["a"][i] = 0.45 if (int(t * 12) % 2) else 1.0
             else:
                 sprites["a"][i] = 1.0
-@app.system(pyge.Phase.POST_UPDATE)
+@app.system(keel.Phase.POST_UPDATE)
 def collision_system(world, dt):
     g = _gs(world)
     if g is None: return
-    for event in world.read_events(pyge.CollisionEvent2D):
+    for event in world.read_events(keel.CollisionEvent2D):
         a, b = int(event.entity_a), int(event.entity_b)
         if not world.is_alive(a) or not world.is_alive(b): continue
         if a in BULLET_ENTITIES and b in ASTEROID_ENTITIES:
@@ -287,7 +287,7 @@ def collision_system(world, dt):
             _ship_hit(world, g, a)
         elif b in SHIP_ENTITIES and a in ASTEROID_ENTITIES:
             _ship_hit(world, g, b)
-@app.system(pyge.Phase.POST_UPDATE)
+@app.system(keel.Phase.POST_UPDATE)
 def despawn_system(world, dt):
     for eid in DESPAWN_QUEUE:
         if world.is_alive(eid):
@@ -298,7 +298,7 @@ def despawn_system(world, dt):
         BULLET_ENTITIES.discard(eid)
         ASTEROID_ENTITIES.discard(eid)
     DESPAWN_QUEUE.clear()
-@app.system(pyge.Phase.POST_UPDATE)
+@app.system(keel.Phase.POST_UPDATE)
 def text_update(world, dt):
     g = _gs(world)
     if g is None: return
@@ -308,7 +308,7 @@ def text_update(world, dt):
 def _hit_asteroid(world, g, bullet_eid, ast_eid):
     if bullet_eid in DESPAWN_QUEUE or ast_eid in DESPAWN_QUEUE: return
     info = world.get_component(ast_eid, Asteroid)
-    pos = world.get_component(ast_eid, pyge.Transform2D)
+    pos = world.get_component(ast_eid, keel.Transform2D)
     if info is None or pos is None: return
     size = int(info.size)
     g["score"][0] += ASTEROID_SCORE[size]

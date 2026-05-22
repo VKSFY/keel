@@ -14,9 +14,9 @@ import moderngl
 import numpy as np
 import pytest
 
-import pyge
-from pyge import Phase, Scheduler, Sprite, Transform2D, World
-from pyge.renderer import (
+import keel
+from keel import Phase, Scheduler, Sprite, Transform2D, World
+from keel.renderer import (
     Camera2D,
     MAX_TEXTURE_UNITS,
     ShaderCache,
@@ -44,7 +44,7 @@ def gl_ctx():
     glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
     if sys.platform == "darwin":
         glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, glfw.TRUE)
-    win = glfw.create_window(1, 1, "pyge-test", None, None)
+    win = glfw.create_window(1, 1, "keel-test", None, None)
     if not win:
         glfw.terminate()
         pytest.skip("Could not create offscreen GLFW window")
@@ -448,15 +448,15 @@ def test_render_with_no_camera_uses_default(gl_ctx):
 # --- Public re-exports -----------------------------------------------------
 
 def test_top_level_components_re_exported():
-    assert pyge.Transform2D is Transform2D
-    assert pyge.Sprite is Sprite
-    assert pyge.Camera2D is Camera2D
+    assert keel.Transform2D is Transform2D
+    assert keel.Sprite is Sprite
+    assert keel.Camera2D is Camera2D
 
 
 def test_components_have_numpy_storage():
-    assert Transform2D.__pyge_component__.is_numpy is True
-    assert Sprite.__pyge_component__.is_numpy is True
-    assert Camera2D.__pyge_component__.is_numpy is True
+    assert Transform2D.__keel_component__.is_numpy is True
+    assert Sprite.__keel_component__.is_numpy is True
+    assert Camera2D.__keel_component__.is_numpy is True
 
 
 # --- setup_tilemap --------------------------------------------------------
@@ -532,9 +532,9 @@ def test_tilemap_runs_in_pre_render_phase(gl_ctx):
     setup.tilemap.render = tracked_render
 
     with patch.object(
-        app._pyge_renderer_2d.sprite_batch,
+        app._keel_renderer_2d.sprite_batch,
         "render",
-        wraps=app._pyge_renderer_2d.sprite_batch.render,
+        wraps=app._keel_renderer_2d.sprite_batch.render,
     ) as sprite_render:
         def append_sprite(*args, **kwargs):
             call_order.append("sprite")
@@ -569,7 +569,7 @@ def test_setup_tilemap_respects_custom_tile_size(gl_ctx):
 
 def test_get_active_camera_matrix_default_when_no_camera(gl_ctx):
     """The shared camera helper falls back to default_camera_matrix when no Camera2D exists."""
-    from pyge.renderer import get_active_camera_matrix
+    from keel.renderer import get_active_camera_matrix
 
     app = _fake_app(gl_ctx, viewport=(64, 64))
     setup_renderer_2d(app)

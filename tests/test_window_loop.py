@@ -13,8 +13,8 @@ from typing import Any
 import glfw
 import pytest
 
-import pyge
-from pyge import (
+import keel
+from keel import (
     FIXED_DT,
     FixedStepDriver,
     InputState,
@@ -33,7 +33,7 @@ from pyge import (
 # --- Fakes -----------------------------------------------------------------
 
 class FakeWindow:
-    """A non-GL stand-in for pyge.Window — drives the loop in tests without a display."""
+    """A non-GL stand-in for keel.Window — drives the loop in tests without a display."""
 
     def __init__(self, close_after_iters: int, vsync: bool = True) -> None:
         self._close_after = close_after_iters
@@ -398,7 +398,7 @@ def test_run_loop_clears_events_between_visual_frames():
             if self._iters == 1:  # before-the-systems of the first visual frame
                 self._w.emit(KeyEvent(key=1, scancode=0, action=glfw.PRESS, mods=0))
 
-    from pyge.loop import run_loop
+    from keel.loop import run_loop
     run_loop(_SeedingWindow(world), world, scheduler)
     # The event was emitted only in iteration 1's swap_and_poll, so:
     #  - at least one sim tick in iteration 1 saw the event;
@@ -416,7 +416,7 @@ def test_run_loop_clears_events_between_visual_frames():
 # --- run_loop --------------------------------------------------------------
 
 def test_run_loop_exits_when_window_should_close():
-    from pyge.loop import run_loop
+    from keel.loop import run_loop
     world = World()
     scheduler = Scheduler()
     win = FakeWindow(close_after_iters=3)
@@ -425,7 +425,7 @@ def test_run_loop_exits_when_window_should_close():
 
 
 def test_run_loop_runs_render_phase_each_frame():
-    from pyge.loop import run_loop
+    from keel.loop import run_loop
     world = World()
     scheduler = Scheduler()
 
@@ -441,7 +441,7 @@ def test_run_loop_runs_render_phase_each_frame():
 
 
 def test_run_loop_inserts_render_state_resource():
-    from pyge.loop import run_loop, RenderState
+    from keel.loop import run_loop, RenderState
     world = World()
     scheduler = Scheduler()
     win = FakeWindow(close_after_iters=2)
@@ -453,7 +453,7 @@ def test_run_loop_inserts_render_state_resource():
 
 def test_run_loop_simulation_phase_can_close_window():
     """A system can call window.close() to terminate the loop."""
-    from pyge.loop import run_loop
+    from keel.loop import run_loop
     world = World()
     scheduler = Scheduler()
     win = FakeWindow(close_after_iters=10**9)  # effectively infinite
@@ -506,16 +506,16 @@ def test_scheduler_tick_alias_runs_all_phases():
 # --- Public API surface ----------------------------------------------------
 
 def test_glfw_constants_re_exported():
-    """User code must be able to use pyge.KEY_* / pyge.MOUSE_BUTTON_* / pyge.PRESS without importing glfw."""
-    assert pyge.KEY_ESCAPE == glfw.KEY_ESCAPE
-    assert pyge.KEY_A == glfw.KEY_A
-    assert pyge.KEY_SPACE == glfw.KEY_SPACE
-    assert pyge.PRESS == glfw.PRESS
-    assert pyge.RELEASE == glfw.RELEASE
-    assert pyge.REPEAT == glfw.REPEAT
-    assert pyge.MOUSE_BUTTON_LEFT == glfw.MOUSE_BUTTON_LEFT
-    assert pyge.MOUSE_BUTTON_RIGHT == glfw.MOUSE_BUTTON_RIGHT
-    assert pyge.MOUSE_BUTTON_MIDDLE == glfw.MOUSE_BUTTON_MIDDLE
+    """User code must be able to use keel.KEY_* / keel.MOUSE_BUTTON_* / keel.PRESS without importing glfw."""
+    assert keel.KEY_ESCAPE == glfw.KEY_ESCAPE
+    assert keel.KEY_A == glfw.KEY_A
+    assert keel.KEY_SPACE == glfw.KEY_SPACE
+    assert keel.PRESS == glfw.PRESS
+    assert keel.RELEASE == glfw.RELEASE
+    assert keel.REPEAT == glfw.REPEAT
+    assert keel.MOUSE_BUTTON_LEFT == glfw.MOUSE_BUTTON_LEFT
+    assert keel.MOUSE_BUTTON_RIGHT == glfw.MOUSE_BUTTON_RIGHT
+    assert keel.MOUSE_BUTTON_MIDDLE == glfw.MOUSE_BUTTON_MIDDLE
 
 
 def test_event_dataclasses_have_dataclass_fields():
@@ -529,5 +529,5 @@ def test_event_dataclasses_have_dataclass_fields():
         (WindowResizeEvent, {"width", "height"}),
     ]:
         assert dataclasses.is_dataclass(cls)
-        assert getattr(cls, "__pyge_event__", False) is True
+        assert getattr(cls, "__keel_event__", False) is True
         assert {f.name for f in dataclasses.fields(cls)} == expected

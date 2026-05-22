@@ -17,20 +17,20 @@ Controls:
 """
 import math
 
-import pyge
-from pyge.renderer3d import Material, make_cube, make_sphere, setup_renderer_3d
+import keel
+from keel.renderer3d import Material, make_cube, make_sphere, setup_renderer_3d
 
 
-@pyge.component
+@keel.component
 class SpinningCube: pass
 
-@pyge.component
+@keel.component
 class OrbitingLamp: pass
 
 
 # --- App ----------------------------------------------------------------
 
-app = pyge.App(title="Cube Demo", width=800, height=600)
+app = keel.App(title="Cube Demo", width=800, height=600)
 renderer = setup_renderer_3d(app)
 
 mesh_registry = renderer.mesh_registry
@@ -61,28 +61,28 @@ def _look_at_origin(x: float, y: float, z: float) -> tuple[float, float]:
 # Camera at (3, 3, 5) facing the origin.
 cam_yaw, cam_pitch = _look_at_origin(3.0, 3.0, 5.0)
 app.world.spawn(
-    pyge.Camera3D(x=3.0, y=3.0, z=5.0, yaw=cam_yaw, pitch=cam_pitch,
+    keel.Camera3D(x=3.0, y=3.0, z=5.0, yaw=cam_yaw, pitch=cam_pitch,
                   fov=math.radians(60.0), near=0.1, far=100.0),
 )
 
 # The cube at the origin.
 app.world.spawn(
-    pyge.Transform3D(),
-    pyge.MeshRenderer(mesh_id=cube_mesh, material_id=cube_material),
+    keel.Transform3D(),
+    keel.MeshRenderer(mesh_id=cube_mesh, material_id=cube_material),
     SpinningCube(),
 )
 
 # Emissive sphere acting as the visible "lamp" — Transform3D drives the
 # PointLight, since PointLight has no position field of its own.
 app.world.spawn(
-    pyge.Transform3D(scale_x=0.15, scale_y=0.15, scale_z=0.15),
-    pyge.MeshRenderer(mesh_id=sphere_mesh, material_id=lamp_material),
-    pyge.PointLight(r=1.0, g=0.85, b=0.4, intensity=3.0, radius=8.0),
+    keel.Transform3D(scale_x=0.15, scale_y=0.15, scale_z=0.15),
+    keel.MeshRenderer(mesh_id=sphere_mesh, material_id=lamp_material),
+    keel.PointLight(r=1.0, g=0.85, b=0.4, intensity=3.0, radius=8.0),
     OrbitingLamp(),
 )
 
 # Sun-like directional light. No Transform3D — the direction is in the component.
-app.world.spawn(pyge.DirectionalLight(
+app.world.spawn(keel.DirectionalLight(
     dir_x=-0.4, dir_y=-0.7, dir_z=-0.5,
     r=0.95, g=0.95, b=0.85, intensity=0.6,
 ))
@@ -96,22 +96,22 @@ app.world.flush()
 _t = 0.0
 
 
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def quit_on_escape(world, dt):
-    if app.input.is_key_down(pyge.KEY_ESCAPE):
+    if app.input.is_key_down(keel.KEY_ESCAPE):
         app.window.close()
 
 
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def spin_cubes(world, dt):
     """Rotate every SpinningCube on its X and Y axes."""
-    for transforms, _ in world.query(pyge.Transform3D, SpinningCube):
+    for transforms, _ in world.query(keel.Transform3D, SpinningCube):
         for i in range(len(transforms)):
             transforms["rot_y"][i] += dt * 0.6
             transforms["rot_x"][i] += dt * 0.3
 
 
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def orbit_lamp(world, dt):
     """Move every OrbitingLamp around the Y axis at a fixed radius and height.
     Writing into Transform3D in place also moves the co-located PointLight."""
@@ -119,7 +119,7 @@ def orbit_lamp(world, dt):
     _t += dt
     cx = math.cos(_t) * 2.5
     cz = math.sin(_t) * 2.5
-    for transforms, _ in world.query(pyge.Transform3D, OrbitingLamp):
+    for transforms, _ in world.query(keel.Transform3D, OrbitingLamp):
         for i in range(len(transforms)):
             transforms["x"][i] = cx
             transforms["y"][i] = 1.5

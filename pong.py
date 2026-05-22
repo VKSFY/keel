@@ -1,4 +1,4 @@
-"""Pong, built on PyGE. Run with: python pong.py
+"""Pong, built on Keel. Run with: python pong.py
 
 Audit notes from initial development have been resolved.
 See README.md for known v0.1 limitations.
@@ -12,31 +12,31 @@ Controls:
 import math
 import random
 
-import pyge
-from pyge.physics import setup_physics_2d
-from pyge.renderer import setup_renderer_2d
+import keel
+from keel.physics import setup_physics_2d
+from keel.renderer import setup_renderer_2d
 
 
 # --- Components ----------------------------------------------------------
 
-@pyge.component
+@keel.component
 class LeftPaddle: pass
 
-@pyge.component
+@keel.component
 class RightPaddle: pass
 
-@pyge.component
+@keel.component
 class Ball: pass
 
-@pyge.component
+@keel.component
 class LeftScore:
     value: int = 0
 
-@pyge.component
+@keel.component
 class RightScore:
     value: int = 0
 
-@pyge.component
+@keel.component
 class GameState:
     running: bool = True
     winner: int = 0       # 0=none, 1=left, 2=right
@@ -58,7 +58,7 @@ RESET_DELAY = 1.5
 
 # --- Setup ---------------------------------------------------------------
 
-app = pyge.App(title="Pong", width=800, height=600)
+app = keel.App(title="Pong", width=800, height=600)
 setup_renderer_2d(app)
 phys = setup_physics_2d(app, gravity_y=0.0)
 
@@ -87,22 +87,22 @@ def spawn_paddle(x, marker_cls):
     # for both paddle and ball); our collision_system layers Pong's gameplay
     # rules (y-deflection by hit position + speed-up) on top.
     return app.world.spawn(
-        pyge.Transform2D(x=x, y=300.0),
-        pyge.RigidBody2D(body_type=2),
-        pyge.Collider2D(shape_type=1, width=PADDLE_W, height=PADDLE_H,
+        keel.Transform2D(x=x, y=300.0),
+        keel.RigidBody2D(body_type=2),
+        keel.Collider2D(shape_type=1, width=PADDLE_W, height=PADDLE_H,
                         friction=0.0, elasticity=1.0),
-        pyge.Sprite(texture_id=0, width=PADDLE_W, height=PADDLE_H),
+        keel.Sprite(texture_id=0, width=PADDLE_W, height=PADDLE_H),
         marker_cls(),
     )
 
 
 def spawn_ball(vx, vy):
     return app.world.spawn(
-        pyge.Transform2D(x=400.0, y=300.0),
-        pyge.RigidBody2D(mass=1.0, body_type=0, vel_x=vx, vel_y=vy),
-        pyge.Collider2D(shape_type=0, radius=BALL_RADIUS,
+        keel.Transform2D(x=400.0, y=300.0),
+        keel.RigidBody2D(mass=1.0, body_type=0, vel_x=vx, vel_y=vy),
+        keel.Collider2D(shape_type=0, radius=BALL_RADIUS,
                         friction=0.0, elasticity=1.0),
-        pyge.Sprite(texture_id=0, width=BALL_RADIUS * 2.0, height=BALL_RADIUS * 2.0,
+        keel.Sprite(texture_id=0, width=BALL_RADIUS * 2.0, height=BALL_RADIUS * 2.0,
                     r=1.0, g=0.85, b=0.25),
         Ball(),
     )
@@ -110,9 +110,9 @@ def spawn_ball(vx, vy):
 
 def spawn_wall(y):
     return app.world.spawn(
-        pyge.Transform2D(x=400.0, y=y),
-        pyge.RigidBody2D(body_type=1),
-        pyge.Collider2D(shape_type=1, width=800.0, height=10.0,
+        keel.Transform2D(x=400.0, y=y),
+        keel.RigidBody2D(body_type=1),
+        keel.Collider2D(shape_type=1, width=800.0, height=10.0,
                         friction=0.0, elasticity=1.0),
     )
 
@@ -134,45 +134,45 @@ def _paddle_input_velocity(world, eid, up_key, down_key):
     to zero when the paddle is already at a wall."""
     v = ((PADDLE_SPEED if app.input.is_key_down(up_key)   else 0.0) -
          (PADDLE_SPEED if app.input.is_key_down(down_key) else 0.0))
-    t = world.get_component(eid, pyge.Transform2D)
+    t = world.get_component(eid, keel.Transform2D)
     if t is not None:
         if t.y >= PADDLE_MAX_Y and v > 0.0: v = 0.0
         elif t.y <= PADDLE_MIN_Y and v < 0.0: v = 0.0
     return v
 
 
-@app.system(pyge.Phase.PRE_UPDATE)
+@app.system(keel.Phase.PRE_UPDATE)
 def input_system(world, dt):
-    if app.input.is_key_down(pyge.KEY_ESCAPE):
+    if app.input.is_key_down(keel.KEY_ESCAPE):
         app.window.close()
     phys.set_velocity(
         ENTITIES["left_paddle"],
         0.0,
-        _paddle_input_velocity(world, ENTITIES["left_paddle"], pyge.KEY_W, pyge.KEY_S),
+        _paddle_input_velocity(world, ENTITIES["left_paddle"], keel.KEY_W, keel.KEY_S),
     )
     phys.set_velocity(
         ENTITIES["right_paddle"],
         0.0,
-        _paddle_input_velocity(world, ENTITIES["right_paddle"], pyge.KEY_UP, pyge.KEY_DOWN),
+        _paddle_input_velocity(world, ENTITIES["right_paddle"], keel.KEY_UP, keel.KEY_DOWN),
     )
 
 
-@app.system(pyge.Phase.PRE_UPDATE)
+@app.system(keel.Phase.PRE_UPDATE)
 def paddle_clamp_system(world, dt):
     """Snap any paddle that drifted past its boundary back into bounds."""
     for marker in (LeftPaddle, RightPaddle):
-        for transforms, _ in world.query(pyge.Transform2D, marker):
+        for transforms, _ in world.query(keel.Transform2D, marker):
             ys = transforms["y"]
             for i in range(len(transforms)):
                 if ys[i] > PADDLE_MAX_Y: ys[i] = PADDLE_MAX_Y
                 elif ys[i] < PADDLE_MIN_Y: ys[i] = PADDLE_MIN_Y
 
 
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def ball_out_of_bounds_system(world, dt):
     if BALL_STATE["frozen"]:
         return
-    ball_t = world.get_component(ENTITIES["ball"], pyge.Transform2D)
+    ball_t = world.get_component(ENTITIES["ball"], keel.Transform2D)
     if ball_t is None:
         return
     for arch in world.query(GameState, LeftScore, RightScore).archetypes():
@@ -197,7 +197,7 @@ def ball_out_of_bounds_system(world, dt):
                 print(f"[Pong] Left: {int(ls['value'][i])}  Right: {int(rs['value'][i])}")
 
 
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def reset_timer_system(world, dt):
     for arch in world.query(GameState).archetypes():
         n = arch.length
@@ -217,20 +217,20 @@ def reset_timer_system(world, dt):
                 phys.set_velocity(ENTITIES["ball"], vx, vy)
 
 
-@app.system(pyge.Phase.POST_UPDATE)
+@app.system(keel.Phase.POST_UPDATE)
 def collision_system(world, dt):
     """Layer Pong gameplay on top of pymunk's natural paddle bounce: y-deflection
     by hit position + cumulative speed multiplier. Pymunk has already flipped vx
     via paddle elasticity=1.0 by the time we read the ball's velocity."""
     if BALL_STATE["frozen"]:
-        for _ in world.read_events(pyge.CollisionEvent2D):
+        for _ in world.read_events(keel.CollisionEvent2D):
             pass
         return
 
     ball_eid = ENTITIES["ball"]
     left_eid = ENTITIES["left_paddle"]
     right_eid = ENTITIES["right_paddle"]
-    ball_t = world.get_component(ball_eid, pyge.Transform2D)
+    ball_t = world.get_component(ball_eid, keel.Transform2D)
     if ball_t is None:
         return
 
@@ -240,7 +240,7 @@ def collision_system(world, dt):
     elif BALL_STATE["last_hit"] == right_eid and ball_t.x < 700.0:
         BALL_STATE["last_hit"] = 0
 
-    for event in world.read_events(pyge.CollisionEvent2D):
+    for event in world.read_events(keel.CollisionEvent2D):
         a, b = int(event.entity_a), int(event.entity_b)
         if ball_eid not in (a, b):
             continue
@@ -250,8 +250,8 @@ def collision_system(world, dt):
         if BALL_STATE["last_hit"] == other:
             continue  # still in contact — pymunk's post_solve fires every tick
 
-        paddle_t = world.get_component(other, pyge.Transform2D)
-        ball_rb = world.get_component(ball_eid, pyge.RigidBody2D)
+        paddle_t = world.get_component(other, keel.Transform2D)
+        ball_rb = world.get_component(ball_eid, keel.RigidBody2D)
         if paddle_t is None or ball_rb is None:
             continue
 
@@ -274,7 +274,7 @@ def collision_system(world, dt):
         BALL_STATE["last_hit"] = other
 
 
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def win_check_system(world, dt):
     for arch in world.query(GameState, LeftScore, RightScore).archetypes():
         n = arch.length

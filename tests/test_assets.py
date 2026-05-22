@@ -15,8 +15,8 @@ from typing import Any
 import pytest
 from watchdog.events import FileCreatedEvent, FileModifiedEvent
 
-import pyge
-from pyge import (
+import keel
+from keel import (
     AssetHandle,
     AssetNotFoundError,
     AssetRegistry,
@@ -33,9 +33,9 @@ from pyge import (
     component,
     setup_assets as setup_assets_fn,
 )
-from pyge.assets import setup_assets
-from pyge.assets.loaders import json_loader, make_texture_loader
-from pyge.assets.registry import _normalize
+from keel.assets import setup_assets
+from keel.assets.loaders import json_loader, make_texture_loader
+from keel.assets.registry import _normalize
 
 
 # --- Fakes ----------------------------------------------------------------
@@ -531,18 +531,18 @@ def test_setup_assets_idempotent_with_watch_dirs(tmp_path):
 
 
 def test_setup_assets_module_function_matches_app_method():
-    """The pyge.setup_assets re-export and the App method are the same code path."""
+    """The keel.setup_assets re-export and the App method are the same code path."""
     assert setup_assets is setup_assets_fn
 
 
-# --- pyge re-exports ------------------------------------------------------
+# --- keel re-exports ------------------------------------------------------
 
 def test_top_level_re_exports():
-    assert pyge.AssetRegistry is AssetRegistry
-    assert pyge.AssetHandle is AssetHandle
-    assert pyge.Scene is Scene
-    assert pyge.SceneVersionError is SceneVersionError
-    assert pyge.AssetNotFoundError is AssetNotFoundError
-    assert pyge.NoLoaderError is NoLoaderError
-    assert pyge.InvalidHandleError is InvalidHandleError
-    assert pyge.FileWatcher is FileWatcher
+    assert keel.AssetRegistry is AssetRegistry
+    assert keel.AssetHandle is AssetHandle
+    assert keel.Scene is Scene
+    assert keel.SceneVersionError is SceneVersionError
+    assert keel.AssetNotFoundError is AssetNotFoundError
+    assert keel.NoLoaderError is NoLoaderError
+    assert keel.InvalidHandleError is InvalidHandleError
+    assert keel.FileWatcher is FileWatcher

@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import pyge
-from pyge import Phase, Scheduler, World
-from pyge.audio import (
+import keel
+from keel import Phase, Scheduler, World
+from keel.audio import (
     AudioEngine,
     AudioSetup,
     AudioSource,
@@ -74,7 +74,7 @@ def _fake_music_stream(frame_count: int = 4096):
 @pytest.fixture(autouse=True)
 def _patch_playback_device():
     """Every test in this module runs with a mocked PlaybackDevice."""
-    with patch("pyge.audio.audio_engine.miniaudio.PlaybackDevice") as mock_dev_cls:
+    with patch("keel.audio.audio_engine.miniaudio.PlaybackDevice") as mock_dev_cls:
         mock_dev_cls.return_value = MagicMock(spec=["start", "stop", "close"])
         yield mock_dev_cls
 
@@ -102,7 +102,7 @@ def test_default_volumes_are_one(engine):
 def test_load_caches_decoded_file(tmp_path, engine):
     sound_path = tmp_path / "boom.wav"
     sound_path.write_bytes(b"\x00")  # contents irrelevant — decode is mocked
-    with patch("pyge.audio.audio_engine.miniaudio.decode_file") as decode:
+    with patch("keel.audio.audio_engine.miniaudio.decode_file") as decode:
         decode.return_value = _fake_decoded_sound()
         engine.load(str(sound_path))
         engine.load(str(sound_path))
@@ -118,7 +118,7 @@ def test_load_missing_file_raises(engine, tmp_path):
 def test_load_accepts_supported_extensions(engine, tmp_path, ext):
     p = tmp_path / f"clip{ext}"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.decode_file") as decode:
+    with patch("keel.audio.audio_engine.miniaudio.decode_file") as decode:
         decode.return_value = _fake_decoded_sound()
         engine.load(str(p))
         decode.assert_called_once()
@@ -129,7 +129,7 @@ def test_load_accepts_supported_extensions(engine, tmp_path, ext):
 def test_play_returns_handle_with_positive_id(tmp_path, engine):
     p = tmp_path / "a.wav"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.decode_file") as decode:
+    with patch("keel.audio.audio_engine.miniaudio.decode_file") as decode:
         decode.return_value = _fake_decoded_sound()
         handle = engine.play(str(p))
     assert isinstance(handle, SoundHandle)
@@ -139,7 +139,7 @@ def test_play_returns_handle_with_positive_id(tmp_path, engine):
 def test_play_two_sounds_assigns_distinct_ids(tmp_path, engine):
     p = tmp_path / "a.wav"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.decode_file") as decode:
+    with patch("keel.audio.audio_engine.miniaudio.decode_file") as decode:
         decode.return_value = _fake_decoded_sound()
         h1 = engine.play(str(p))
         h2 = engine.play(str(p))
@@ -149,7 +149,7 @@ def test_play_two_sounds_assigns_distinct_ids(tmp_path, engine):
 def test_play_auto_loads_unprelaoded(tmp_path, engine):
     p = tmp_path / "a.wav"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.decode_file") as decode:
+    with patch("keel.audio.audio_engine.miniaudio.decode_file") as decode:
         decode.return_value = _fake_decoded_sound()
         # No prior load() — play() must do it.
         engine.play(str(p))
@@ -159,7 +159,7 @@ def test_play_auto_loads_unprelaoded(tmp_path, engine):
 def test_stop_known_handle_is_a_noop_then_idempotent(tmp_path, engine):
     p = tmp_path / "a.wav"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.decode_file") as decode:
+    with patch("keel.audio.audio_engine.miniaudio.decode_file") as decode:
         decode.return_value = _fake_decoded_sound()
         handle = engine.play(str(p))
     engine.stop(handle)
@@ -168,7 +168,7 @@ def test_stop_known_handle_is_a_noop_then_idempotent(tmp_path, engine):
 def test_stop_already_stopped_handle_is_idempotent(tmp_path, engine):
     p = tmp_path / "a.wav"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.decode_file") as decode:
+    with patch("keel.audio.audio_engine.miniaudio.decode_file") as decode:
         decode.return_value = _fake_decoded_sound()
         handle = engine.play(str(p))
     engine.stop(handle)
@@ -178,7 +178,7 @@ def test_stop_already_stopped_handle_is_idempotent(tmp_path, engine):
 def test_stop_all_clears_playing_dict(tmp_path, engine):
     p = tmp_path / "a.wav"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.decode_file") as decode:
+    with patch("keel.audio.audio_engine.miniaudio.decode_file") as decode:
         decode.return_value = _fake_decoded_sound()
         engine.play(str(p))
         engine.play(str(p))
@@ -190,7 +190,7 @@ def test_stop_all_clears_playing_dict(tmp_path, engine):
 def test_is_playing_true_after_play_false_after_stop(tmp_path, engine):
     p = tmp_path / "a.wav"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.decode_file") as decode:
+    with patch("keel.audio.audio_engine.miniaudio.decode_file") as decode:
         decode.return_value = _fake_decoded_sound()
         h = engine.play(str(p))
     assert engine.is_playing(h) is True
@@ -203,7 +203,7 @@ def test_is_playing_true_after_play_false_after_stop(tmp_path, engine):
 def test_play_music_sets_music_stream(tmp_path, engine):
     p = tmp_path / "song.ogg"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.stream_file") as stream_file:
+    with patch("keel.audio.audio_engine.miniaudio.stream_file") as stream_file:
         stream_file.return_value = _fake_music_stream()
         engine.play_music(str(p), loop=True)
     assert engine._music_stream is not None
@@ -213,7 +213,7 @@ def test_play_music_sets_music_stream(tmp_path, engine):
 def test_play_music_twice_replaces_stream(tmp_path, engine):
     p = tmp_path / "song.ogg"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.stream_file") as stream_file:
+    with patch("keel.audio.audio_engine.miniaudio.stream_file") as stream_file:
         s1 = _fake_music_stream()
         s2 = _fake_music_stream()
         stream_file.side_effect = [s1, s2]
@@ -227,7 +227,7 @@ def test_play_music_twice_replaces_stream(tmp_path, engine):
 def test_stop_music_immediately_clears(tmp_path, engine):
     p = tmp_path / "song.ogg"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.stream_file") as stream_file:
+    with patch("keel.audio.audio_engine.miniaudio.stream_file") as stream_file:
         stream_file.return_value = _fake_music_stream()
         engine.play_music(str(p))
     engine.stop_music()
@@ -238,7 +238,7 @@ def test_is_music_playing_reflects_state(tmp_path, engine):
     p = tmp_path / "song.ogg"
     p.write_bytes(b"\x00")
     assert engine.is_music_playing() is False
-    with patch("pyge.audio.audio_engine.miniaudio.stream_file") as stream_file:
+    with patch("keel.audio.audio_engine.miniaudio.stream_file") as stream_file:
         stream_file.return_value = _fake_music_stream()
         engine.play_music(str(p))
     assert engine.is_music_playing() is True
@@ -249,7 +249,7 @@ def test_is_music_playing_reflects_state(tmp_path, engine):
 def test_fade_in_starts_at_zero_and_advances(tmp_path, engine):
     p = tmp_path / "song.ogg"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.stream_file") as stream_file:
+    with patch("keel.audio.audio_engine.miniaudio.stream_file") as stream_file:
         stream_file.return_value = _fake_music_stream()
         engine.play_music(str(p), fade_in=2.0)
     ms = engine._music_stream
@@ -264,7 +264,7 @@ def test_fade_in_starts_at_zero_and_advances(tmp_path, engine):
 def test_stop_music_with_fade_out_ramps_then_stops(tmp_path, engine):
     p = tmp_path / "song.ogg"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.stream_file") as stream_file:
+    with patch("keel.audio.audio_engine.miniaudio.stream_file") as stream_file:
         stream_file.return_value = _fake_music_stream()
         engine.play_music(str(p))
     engine.stop_music(fade_out=0.5)
@@ -315,7 +315,7 @@ def test_volume_clamped_below_zero(engine):
 def test_update_removes_finished_handles(tmp_path, engine):
     p = tmp_path / "a.wav"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.decode_file") as decode:
+    with patch("keel.audio.audio_engine.miniaudio.decode_file") as decode:
         decode.return_value = _fake_decoded_sound()
         h = engine.play(str(p))
     # Pretend the mixer finished this handle.
@@ -387,7 +387,7 @@ def test_play_sound_delegates_to_engine(tmp_path):
     setup_audio(app)
     p = tmp_path / "a.wav"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.decode_file") as decode:
+    with patch("keel.audio.audio_engine.miniaudio.decode_file") as decode:
         decode.return_value = _fake_decoded_sound()
         handle = play_sound(app, str(p), volume=0.5)
     assert isinstance(handle, SoundHandle)
@@ -398,7 +398,7 @@ def test_stop_sound_delegates_to_engine(tmp_path):
     setup = setup_audio(app)
     p = tmp_path / "a.wav"
     p.write_bytes(b"\x00")
-    with patch("pyge.audio.audio_engine.miniaudio.decode_file") as decode:
+    with patch("keel.audio.audio_engine.miniaudio.decode_file") as decode:
         decode.return_value = _fake_decoded_sound()
         handle = play_sound(app, str(p))
     stop_sound(app, handle)

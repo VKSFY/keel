@@ -13,8 +13,8 @@ from unittest.mock import patch
 import glfw
 import pytest
 
-import pyge
-from pyge import (
+import keel
+from keel import (
     GAMEPAD_AXIS_LEFT_X,
     GAMEPAD_AXIS_LEFT_Y,
     GAMEPAD_AXIS_RIGHT_TRIGGER,
@@ -28,7 +28,7 @@ from pyge import (
     World,
     setup_gamepad,
 )
-from pyge.gamepad import NUM_AXES, NUM_BUTTONS
+from keel.gamepad import NUM_AXES, NUM_BUTTONS
 
 
 # --- Helpers --------------------------------------------------------------
@@ -76,14 +76,14 @@ def _fake_app():
 
 def test_is_connected_false_when_glfw_returns_none():
     gp = GamepadState()
-    with patch("pyge.gamepad.glfw.get_gamepad_state", return_value=None):
+    with patch("keel.gamepad.glfw.get_gamepad_state", return_value=None):
         gp.poll(World())
     assert gp.is_connected(0) is False
 
 
 def test_is_connected_true_when_glfw_returns_state():
     gp = GamepadState()
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state())):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state())):
         gp.poll(World())
     assert gp.is_connected(0) is True
 
@@ -98,7 +98,7 @@ def test_is_connected_out_of_range_returns_false():
 
 def test_get_axis_returns_zero_for_disconnected():
     gp = GamepadState()
-    with patch("pyge.gamepad.glfw.get_gamepad_state", return_value=None):
+    with patch("keel.gamepad.glfw.get_gamepad_state", return_value=None):
         gp.poll(World())
     assert gp.get_axis(0, GAMEPAD_AXIS_LEFT_X) == 0.0
 
@@ -107,14 +107,14 @@ def test_get_axis_returns_polled_value():
     gp = GamepadState()
     axes = [0.0] * NUM_AXES
     axes[GAMEPAD_AXIS_LEFT_X] = 0.42
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(axes=axes))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(axes=axes))):
         gp.poll(World())
     assert gp.get_axis(0, GAMEPAD_AXIS_LEFT_X) == pytest.approx(0.42)
 
 
 def test_get_axis_out_of_range_returns_zero():
     gp = GamepadState()
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state())):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state())):
         gp.poll(World())
     assert gp.get_axis(0, 99) == 0.0
     assert gp.get_axis(99, GAMEPAD_AXIS_LEFT_X) == 0.0
@@ -131,7 +131,7 @@ def test_is_button_down_true_after_press():
     gp = GamepadState()
     buttons = [glfw.RELEASE] * NUM_BUTTONS
     buttons[GAMEPAD_BUTTON_A] = glfw.PRESS
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
         gp.poll(World())
     assert gp.is_button_down(0, GAMEPAD_BUTTON_A) is True
 
@@ -150,14 +150,14 @@ def test_poll_emits_press_event_on_button_down():
     world = World()
 
     # Tick 1: nothing pressed; no events.
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state())):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state())):
         gp.poll(world)
     _drain(world, GamepadButtonEvent)  # discard frame 1's empty drain
 
     # Tick 2: A pressed; one PRESS event.
     buttons = [glfw.RELEASE] * NUM_BUTTONS
     buttons[GAMEPAD_BUTTON_A] = glfw.PRESS
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
         gp.poll(world)
     events = _drain(world, GamepadButtonEvent)
     assert len(events) == 1
@@ -172,12 +172,12 @@ def test_poll_emits_release_event_on_button_up():
     buttons = [glfw.RELEASE] * NUM_BUTTONS
     buttons[GAMEPAD_BUTTON_A] = glfw.PRESS
 
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
         gp.poll(world)
     _drain(world, GamepadButtonEvent)
 
     buttons[GAMEPAD_BUTTON_A] = glfw.RELEASE
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
         gp.poll(world)
     events = _drain(world, GamepadButtonEvent)
     assert len(events) == 1
@@ -189,12 +189,12 @@ def test_poll_no_event_when_button_state_unchanged():
     world = World()
     buttons = [glfw.RELEASE] * NUM_BUTTONS
     buttons[GAMEPAD_BUTTON_A] = glfw.PRESS
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
         gp.poll(world)
     _drain(world, GamepadButtonEvent)
 
     # Same state -> no events the second poll.
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
         gp.poll(world)
     events = _drain(world, GamepadButtonEvent)
     assert events == []
@@ -204,12 +204,12 @@ def test_poll_emits_axis_event_when_change_exceeds_deadzone():
     gp = GamepadState()
     world = World()
     axes = [0.0] * NUM_AXES
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(axes=axes))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(axes=axes))):
         gp.poll(world)
     _drain(world, GamepadAxisEvent)
 
     axes[GAMEPAD_AXIS_LEFT_X] = 0.5
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(axes=axes))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(axes=axes))):
         gp.poll(world)
     events = _drain(world, GamepadAxisEvent)
     assert any(
@@ -222,12 +222,12 @@ def test_poll_no_axis_event_when_change_under_deadzone():
     gp = GamepadState()
     world = World()
     axes = [0.0] * NUM_AXES
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(axes=axes))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(axes=axes))):
         gp.poll(world)
     _drain(world, GamepadAxisEvent)
 
     axes[GAMEPAD_AXIS_LEFT_X] = 0.02  # well under 0.05 deadzone
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(axes=axes))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(axes=axes))):
         gp.poll(world)
     events = _drain(world, GamepadAxisEvent)
     assert events == []
@@ -239,14 +239,14 @@ def test_poll_no_axis_event_when_change_under_deadzone():
 
 def test_poll_handles_disconnected_gamepad_gracefully():
     gp = GamepadState()
-    with patch("pyge.gamepad.glfw.get_gamepad_state", return_value=None):
+    with patch("keel.gamepad.glfw.get_gamepad_state", return_value=None):
         gp.poll(World())  # must not raise
     assert gp.is_connected(0) is False
 
 
 def test_poll_handles_glfw_exception_gracefully():
     gp = GamepadState()
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=Exception("backend bug")):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=Exception("backend bug")):
         gp.poll(World())  # must not raise
     assert gp.is_connected(0) is False
 
@@ -260,7 +260,7 @@ def test_poll_polls_all_four_slots():
         calls.append(slot)
         return None
 
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=record):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=record):
         gp.poll(World())
     assert calls == [0, 1, 2, 3]
 
@@ -272,12 +272,12 @@ def test_disconnect_releases_held_buttons():
     buttons = [glfw.RELEASE] * NUM_BUTTONS
     buttons[GAMEPAD_BUTTON_A] = glfw.PRESS
     buttons[GAMEPAD_BUTTON_B] = glfw.PRESS
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
         gp.poll(world)
     _drain(world, GamepadButtonEvent)
 
     # Gamepad unplugged.
-    with patch("pyge.gamepad.glfw.get_gamepad_state", return_value=None):
+    with patch("keel.gamepad.glfw.get_gamepad_state", return_value=None):
         gp.poll(world)
     events = _drain(world, GamepadButtonEvent)
     actions = {e.button for e in events if e.action == glfw.RELEASE}
@@ -318,26 +318,26 @@ def test_setup_gamepad_idempotent():
     assert len(app.scheduler._systems[Phase.PRE_UPDATE]) == 1
 
 
-# --- Constants exposed at pyge level -------------------------------------
+# --- Constants exposed at keel level -------------------------------------
 
 def test_gamepad_button_constants_match_glfw():
-    assert pyge.GAMEPAD_BUTTON_A == glfw.GAMEPAD_BUTTON_A
-    assert pyge.GAMEPAD_BUTTON_DPAD_UP == glfw.GAMEPAD_BUTTON_DPAD_UP
+    assert keel.GAMEPAD_BUTTON_A == glfw.GAMEPAD_BUTTON_A
+    assert keel.GAMEPAD_BUTTON_DPAD_UP == glfw.GAMEPAD_BUTTON_DPAD_UP
 
 
 def test_gamepad_axis_constants_match_glfw():
-    assert pyge.GAMEPAD_AXIS_LEFT_X == glfw.GAMEPAD_AXIS_LEFT_X
-    assert pyge.GAMEPAD_AXIS_RIGHT_TRIGGER == glfw.GAMEPAD_AXIS_RIGHT_TRIGGER
+    assert keel.GAMEPAD_AXIS_LEFT_X == glfw.GAMEPAD_AXIS_LEFT_X
+    assert keel.GAMEPAD_AXIS_RIGHT_TRIGGER == glfw.GAMEPAD_AXIS_RIGHT_TRIGGER
 
 
 # --- Event-type registration --------------------------------------------
 
-def test_gamepad_button_event_is_registered_pyge_event():
-    assert hasattr(GamepadButtonEvent, "__pyge_event__")
+def test_gamepad_button_event_is_registered_keel_event():
+    assert hasattr(GamepadButtonEvent, "__keel_event__")
 
 
-def test_gamepad_axis_event_is_registered_pyge_event():
-    assert hasattr(GamepadAxisEvent, "__pyge_event__")
+def test_gamepad_axis_event_is_registered_keel_event():
+    assert hasattr(GamepadAxisEvent, "__keel_event__")
 
 
 def test_is_button_down_false_after_release():
@@ -346,11 +346,11 @@ def test_is_button_down_false_after_release():
     world = World()
     buttons = [glfw.RELEASE] * NUM_BUTTONS
     buttons[GAMEPAD_BUTTON_A] = glfw.PRESS
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
         gp.poll(world)
     assert gp.is_button_down(0, GAMEPAD_BUTTON_A) is True
     buttons[GAMEPAD_BUTTON_A] = glfw.RELEASE
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
         gp.poll(world)
     assert gp.is_button_down(0, GAMEPAD_BUTTON_A) is False
 
@@ -359,14 +359,14 @@ def test_two_simultaneous_button_presses_emit_two_events():
     """Pressing A and B in the same frame should fire two GamepadButtonEvents."""
     gp = GamepadState()
     world = World()
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state())):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state())):
         gp.poll(world)
     _drain(world, GamepadButtonEvent)
 
     buttons = [glfw.RELEASE] * NUM_BUTTONS
     buttons[GAMEPAD_BUTTON_A] = glfw.PRESS
     buttons[GAMEPAD_BUTTON_B] = glfw.PRESS
-    with patch("pyge.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
+    with patch("keel.gamepad.glfw.get_gamepad_state", side_effect=_slot0_only(_gp_state(buttons=buttons))):
         gp.poll(world)
     events = _drain(world, GamepadButtonEvent)
     pressed = {(e.button, e.action) for e in events}

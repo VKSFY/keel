@@ -17,8 +17,8 @@ import moderngl
 import numpy as np
 import pytest
 
-import pyge
-from pyge import (
+import keel
+from keel import (
     Camera3D,
     DirectionalLight,
     MeshRenderer,
@@ -28,9 +28,9 @@ from pyge import (
     Transform3D,
     World,
 )
-from pyge.components.sprite import Sprite as _Sprite  # noqa: F401  - keeps dataclass registered
-from pyge.renderer import setup_renderer_2d
-from pyge.renderer3d import (
+from keel.components.sprite import Sprite as _Sprite  # noqa: F401  - keeps dataclass registered
+from keel.renderer import setup_renderer_2d
+from keel.renderer3d import (
     AmbientLight,
     BoundingSphere,
     FrustumCuller,
@@ -66,7 +66,7 @@ def gl_ctx():
     glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
     if sys.platform == "darwin":
         glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, glfw.TRUE)
-    win = glfw.create_window(1, 1, "pyge3d-test", None, None)
+    win = glfw.create_window(1, 1, "keel3d-test", None, None)
     if not win:
         glfw.terminate()
         pytest.skip("Could not create offscreen GLFW window")
@@ -548,7 +548,7 @@ def test_2d_and_3d_coexistence_clears_once_and_toggles_depth(gl_ctx):
     setup_renderer_2d(app)
     setup_renderer_3d(app)
 
-    setup3 = app._pyge_renderer_3d
+    setup3 = app._keel_renderer_3d
     cube_id = setup3.mesh_registry.add(make_cube())
     app.world.spawn(Camera3D(z=5.0))
     app.world.spawn(
@@ -573,10 +573,10 @@ def test_2d_and_3d_coexistence_clears_once_and_toggles_depth(gl_ctx):
 # --- Top-level re-exports -------------------------------------------------
 
 def test_top_level_re_exports():
-    assert pyge.Transform3D is Transform3D
-    assert pyge.MeshRenderer is MeshRenderer
-    assert pyge.Camera3D is Camera3D
-    assert pyge.DirectionalLight is DirectionalLight
-    assert pyge.PointLight is PointLight
-    assert pyge.Renderer3D is Renderer3D
-    assert pyge.setup_renderer_3d is setup_renderer_3d
+    assert keel.Transform3D is Transform3D
+    assert keel.MeshRenderer is MeshRenderer
+    assert keel.Camera3D is Camera3D
+    assert keel.DirectionalLight is DirectionalLight
+    assert keel.PointLight is PointLight
+    assert keel.Renderer3D is Renderer3D
+    assert keel.setup_renderer_3d is setup_renderer_3d

@@ -16,8 +16,8 @@ import glfw
 import moderngl
 import pytest
 
-import pyge
-from pyge import (
+import keel
+from keel import (
     Collider2D,
     Phase,
     Physics2D,
@@ -27,7 +27,7 @@ from pyge import (
     World,
     setup_physics_2d,
 )
-from pyge.cli.commands import (
+from keel.cli.commands import (
     BUILD_NOT_IMPLEMENTED_MSG,
     _build_parser,
     cmd_build,
@@ -35,14 +35,14 @@ from pyge.cli.commands import (
     cmd_run,
     main,
 )
-from pyge.cli.templates import MAIN_PY_TEMPLATE, PYPROJECT_TEMPLATE, README_TEMPLATE
-from pyge.physics.components2d import (
+from keel.cli.templates import MAIN_PY_TEMPLATE, PYPROJECT_TEMPLATE, README_TEMPLATE
+from keel.physics.components2d import (
     BODY_TYPE_DYNAMIC as B2_DYNAMIC,
     BODY_TYPE_STATIC as B2_STATIC,
     SHAPE_TYPE_BOX as S2_BOX,
     SHAPE_TYPE_CIRCLE as S2_CIRCLE,
 )
-from pyge.tools import (
+from keel.tools import (
     DebugDraw2D,
     FrameProfiler,
     ProfilerOverlay,
@@ -114,7 +114,7 @@ def _fake_app(ctx=None) -> Any:
 
 # --- CLI -----------------------------------------------------------------
 
-def test_pyge_new_creates_directory_layout(tmp_path, monkeypatch, capsys):
+def test_keel_new_creates_directory_layout(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     rc = cmd_new("myproject")
     assert rc == 0
@@ -129,22 +129,22 @@ def test_pyge_new_creates_directory_layout(tmp_path, monkeypatch, capsys):
     assert "created project" in out
 
 
-def test_pyge_new_main_py_contains_project_name(tmp_path, monkeypatch):
+def test_keel_new_main_py_contains_project_name(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     cmd_new("hero_quest")
     text = (tmp_path / "hero_quest" / "main.py").read_text(encoding="utf-8")
     assert "hero_quest" in text
-    assert "import pyge" in text
+    assert "import keel" in text
 
 
-def test_pyge_new_pyproject_contains_project_name(tmp_path, monkeypatch):
+def test_keel_new_pyproject_contains_project_name(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     cmd_new("hero_quest")
     text = (tmp_path / "hero_quest" / "pyproject.toml").read_text(encoding="utf-8")
     assert "hero_quest" in text
 
 
-def test_pyge_new_refuses_existing_directory(tmp_path, monkeypatch, capsys):
+def test_keel_new_refuses_existing_directory(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "already_here").mkdir()
     rc = cmd_new("already_here")
@@ -153,7 +153,7 @@ def test_pyge_new_refuses_existing_directory(tmp_path, monkeypatch, capsys):
     assert "already_here" in err
 
 
-def test_pyge_build_prints_stub_and_exits_zero(capsys):
+def test_keel_build_prints_stub_and_exits_zero(capsys):
     rc = cmd_build()
     out = capsys.readouterr().out
     assert rc == 0
@@ -191,9 +191,9 @@ class _ScriptedQueue:
         return None
 
 
-def test_pyge_run_starts_subprocess_with_entry():
+def test_keel_run_starts_subprocess_with_entry():
     """The loop spawns the entry script via the injected `spawn` callback."""
-    from pyge.cli.commands import _reload_loop
+    from keel.cli.commands import _reload_loop
 
     spawn_calls: list[str] = []
 
@@ -207,9 +207,9 @@ def test_pyge_run_starts_subprocess_with_entry():
     assert spawn_calls == ["main.py"]
 
 
-def test_pyge_run_restarts_on_py_change(capsys):
+def test_keel_run_restarts_on_py_change(capsys):
     """A queued .py path triggers terminate(old) + spawn(new) and prints the banner."""
-    from pyge.cli.commands import _reload_loop
+    from keel.cli.commands import _reload_loop
 
     procs = [_make_proc(poll_value=None), _make_proc(poll_value=None)]
     spawned: list[Any] = []
@@ -236,9 +236,9 @@ def test_pyge_run_restarts_on_py_change(capsys):
     assert len(spawned) == 2
 
 
-def test_pyge_run_terminates_subprocess_on_keyboard_interrupt():
+def test_keel_run_terminates_subprocess_on_keyboard_interrupt():
     """On Ctrl+C the loop exits cleanly and terminate is called on the live proc."""
-    from pyge.cli.commands import _reload_loop
+    from keel.cli.commands import _reload_loop
 
     proc = _make_proc(poll_value=None)
     terminated: list[Any] = []
@@ -248,9 +248,9 @@ def test_pyge_run_terminates_subprocess_on_keyboard_interrupt():
     assert proc in terminated
 
 
-def test_pyge_run_terminate_uses_kill_after_timeout():
+def test_keel_run_terminate_uses_kill_after_timeout():
     """If a subprocess won't terminate, it must be killed — never zombied."""
-    from pyge.cli.commands import _terminate
+    from keel.cli.commands import _terminate
 
     proc = MagicMock(spec=subprocess.Popen)
     proc.poll.return_value = None  # still alive
@@ -263,7 +263,7 @@ def test_pyge_run_terminate_uses_kill_after_timeout():
     assert proc.kill.called
 
 
-def test_pyge_run_missing_entry_exits_nonzero(tmp_path, monkeypatch, capsys):
+def test_keel_run_missing_entry_exits_nonzero(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     rc = cmd_run("does_not_exist.py")
     assert rc == 1
@@ -271,21 +271,21 @@ def test_pyge_run_missing_entry_exits_nonzero(tmp_path, monkeypatch, capsys):
     assert "not found" in err
 
 
-def test_pyge_main_unknown_command_exits_nonzero(capsys):
+def test_keel_main_unknown_command_exits_nonzero(capsys):
     # argparse exits with code 2 on unknown subcommand by raising SystemExit.
     with pytest.raises(SystemExit) as exc:
         main(["whatevenisthat"])
     assert exc.value.code != 0
 
 
-def test_pyge_main_no_command_returns_2(capsys):
+def test_keel_main_no_command_returns_2(capsys):
     rc = main([])
     assert rc == 2
 
 
 def test_argparse_builds_without_error():
     p = _build_parser()
-    assert p.prog == "pyge"
+    assert p.prog == "keel"
 
 
 def test_templates_have_format_placeholders():
@@ -406,7 +406,7 @@ def test_inspector_toggle_changes_visible(gl_ctx):
 
 
 def test_inspector_render_with_empty_world(gl_ctx):
-    from pyge.tools.inspector import _ImGuiHost
+    from keel.tools.inspector import _ImGuiHost
     insp = WorldInspector(gl_ctx)
     host = _ImGuiHost.for_context(gl_ctx)
     world = World()
@@ -416,7 +416,7 @@ def test_inspector_render_with_empty_world(gl_ctx):
 
 
 def test_inspector_render_with_populated_world(gl_ctx):
-    from pyge.tools.inspector import _ImGuiHost
+    from keel.tools.inspector import _ImGuiHost
     insp = WorldInspector(gl_ctx)
     host = _ImGuiHost.for_context(gl_ctx)
     world = World()
@@ -432,7 +432,7 @@ def test_inspector_render_with_populated_world(gl_ctx):
 
 
 def test_inspector_render_skips_when_hidden(gl_ctx):
-    from pyge.tools.inspector import _ImGuiHost
+    from keel.tools.inspector import _ImGuiHost
     insp = WorldInspector(gl_ctx)
     insp.set_visible(False)
     host = _ImGuiHost.for_context(gl_ctx)
@@ -460,7 +460,7 @@ def test_setup_inspector_idempotent(gl_ctx):
 
 
 def test_profiler_overlay_render_with_empty_stats(gl_ctx):
-    from pyge.tools.inspector import _ImGuiHost
+    from keel.tools.inspector import _ImGuiHost
     overlay = ProfilerOverlay(gl_ctx)
     host = _ImGuiHost.for_context(gl_ctx)
     profiler = FrameProfiler()
@@ -470,7 +470,7 @@ def test_profiler_overlay_render_with_empty_stats(gl_ctx):
 
 
 def test_profiler_overlay_render_with_populated_stats(gl_ctx):
-    from pyge.tools.inspector import _ImGuiHost
+    from keel.tools.inspector import _ImGuiHost
     overlay = ProfilerOverlay(gl_ctx)
     host = _ImGuiHost.for_context(gl_ctx)
     profiler = FrameProfiler()
@@ -507,7 +507,7 @@ def test_debug_draw_toggle(gl_ctx):
 
 def test_debug_draw_render_no_entities(gl_ctx):
     import numpy as np
-    from pyge.renderer.camera2d import default_camera_matrix
+    from keel.renderer.camera2d import default_camera_matrix
 
     d = DebugDraw2D(gl_ctx)
     d.set_visible(True)
@@ -516,7 +516,7 @@ def test_debug_draw_render_no_entities(gl_ctx):
 
 
 def test_debug_draw_render_circle_collider(gl_ctx):
-    from pyge.renderer.camera2d import default_camera_matrix
+    from keel.renderer.camera2d import default_camera_matrix
 
     d = DebugDraw2D(gl_ctx)
     d.set_visible(True)
@@ -532,7 +532,7 @@ def test_debug_draw_render_circle_collider(gl_ctx):
 
 
 def test_debug_draw_render_box_collider(gl_ctx):
-    from pyge.renderer.camera2d import default_camera_matrix
+    from keel.renderer.camera2d import default_camera_matrix
 
     d = DebugDraw2D(gl_ctx)
     d.set_visible(True)
@@ -549,7 +549,7 @@ def test_debug_draw_render_box_collider(gl_ctx):
 
 
 def test_debug_draw_render_skipped_when_hidden(gl_ctx):
-    from pyge.renderer.camera2d import default_camera_matrix
+    from keel.renderer.camera2d import default_camera_matrix
 
     d = DebugDraw2D(gl_ctx)
     # default-hidden
@@ -584,7 +584,7 @@ def test_setup_debug_draw_registers_post_render_system(gl_ctx):
 
 def test_dev_tools_returns_profiler_and_inspector(gl_ctx):
     app = _fake_app(gl_ctx)
-    tools = pyge.dev_tools(app)
+    tools = keel.dev_tools(app)
     assert isinstance(tools.profiler, FrameProfiler)
     assert isinstance(tools.inspector, WorldInspector)
 
@@ -593,7 +593,7 @@ def test_dev_tools_with_physics_includes_debug_draw(gl_ctx):
     app = _fake_app(gl_ctx)
     phys = setup_physics_2d(app)
     try:
-        tools = pyge.dev_tools(app)
+        tools = keel.dev_tools(app)
         assert tools.debug_draw is not None
         assert isinstance(tools.debug_draw, DebugDraw2D)
     finally:
@@ -602,12 +602,12 @@ def test_dev_tools_with_physics_includes_debug_draw(gl_ctx):
 
 def test_dev_tools_without_physics_has_no_debug_draw(gl_ctx):
     app = _fake_app(gl_ctx)
-    tools = pyge.dev_tools(app)
+    tools = keel.dev_tools(app)
     assert tools.debug_draw is None
 
 
 def test_dev_tools_idempotent(gl_ctx):
     app = _fake_app(gl_ctx)
-    a = pyge.dev_tools(app)
-    b = pyge.dev_tools(app)
+    a = keel.dev_tools(app)
+    b = keel.dev_tools(app)
     assert a is b

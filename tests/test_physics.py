@@ -8,8 +8,8 @@ from typing import Any
 import pymunk
 import pytest
 
-import pyge
-from pyge import (
+import keel
+from keel import (
     Collider2D,
     Collider3D,
     CollisionEvent2D,
@@ -26,14 +26,14 @@ from pyge import (
     setup_physics_2d,
     setup_physics_3d,
 )
-from pyge.physics.components2d import (
+from keel.physics.components2d import (
     BODY_TYPE_DYNAMIC as B2_DYNAMIC,
     BODY_TYPE_KINEMATIC as B2_KINEMATIC,
     BODY_TYPE_STATIC as B2_STATIC,
     SHAPE_TYPE_BOX as S2_BOX,
     SHAPE_TYPE_CIRCLE as S2_CIRCLE,
 )
-from pyge.physics.components3d import (
+from keel.physics.components3d import (
     BODY_TYPE_DYNAMIC as B3_DYNAMIC,
     BODY_TYPE_STATIC as B3_STATIC,
     SHAPE_TYPE_BOX as S3_BOX,
@@ -731,41 +731,41 @@ def test_2d_and_3d_physics_coexist_on_same_app():
 
 
 def test_collision_event_3d_is_registered_event():
-    assert getattr(CollisionEvent3D, "__pyge_event__", False) is True
+    assert getattr(CollisionEvent3D, "__keel_event__", False) is True
 
 
 def test_collision_event_2d_is_registered_event():
-    assert getattr(CollisionEvent2D, "__pyge_event__", False) is True
+    assert getattr(CollisionEvent2D, "__keel_event__", False) is True
 
 
 def test_physics_components_registered():
     for cls in (RigidBody2D, Collider2D, RigidBody3D, Collider3D):
-        assert getattr(cls, "__pyge_component__", None) is not None
+        assert getattr(cls, "__keel_component__", None) is not None
 
 
 # --- Public re-exports ---------------------------------------------------
 
 def test_top_level_re_exports():
-    assert pyge.Physics2D is Physics2D
-    assert pyge.Physics3D is Physics3D
-    assert pyge.RigidBody2D is RigidBody2D
-    assert pyge.RigidBody3D is RigidBody3D
-    assert pyge.Collider2D is Collider2D
-    assert pyge.Collider3D is Collider3D
-    assert pyge.CollisionEvent2D is CollisionEvent2D
-    assert pyge.CollisionEvent3D is CollisionEvent3D
-    assert pyge.setup_physics_2d is setup_physics_2d
-    assert pyge.setup_physics_3d is setup_physics_3d
+    assert keel.Physics2D is Physics2D
+    assert keel.Physics3D is Physics3D
+    assert keel.RigidBody2D is RigidBody2D
+    assert keel.RigidBody3D is RigidBody3D
+    assert keel.Collider2D is Collider2D
+    assert keel.Collider3D is Collider3D
+    assert keel.CollisionEvent2D is CollisionEvent2D
+    assert keel.CollisionEvent3D is CollisionEvent3D
+    assert keel.setup_physics_2d is setup_physics_2d
+    assert keel.setup_physics_3d is setup_physics_3d
 
 
 def test_kinematic_kinematic_no_collision_event_documented():
     """Document the pymunk limitation: KINEMATIC-vs-KINEMATIC emits no events.
 
     This is intentional pymunk behavior — use DYNAMIC for entities that must
-    collide with each other. PyGE also surfaces a one-time UserWarning when a
+    collide with each other. Keel also surfaces a one-time UserWarning when a
     second kinematic body joins the space.
     """
-    from pyge.physics.components2d import BODY_TYPE_KINEMATIC
+    from keel.physics.components2d import BODY_TYPE_KINEMATIC
 
     phys = Physics2D()
     world = World()

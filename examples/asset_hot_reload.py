@@ -27,18 +27,18 @@ from pathlib import Path
 
 from PIL import Image
 
-import pyge
-from pyge.renderer import setup_renderer_2d
+import keel
+from keel.renderer import setup_renderer_2d
 
 
 HERO_PATH = Path(__file__).resolve().parent / "assets" / "hero.png"
 HERO_SIZE = 64
 
 COLORS = {
-    pyge.KEY_1: (235,  60,  60, 255),  # red
-    pyge.KEY_2: ( 60, 200,  80, 255),  # green
-    pyge.KEY_3: ( 80, 130, 235, 255),  # blue
-    pyge.KEY_4: (240, 220,  70, 255),  # yellow
+    keel.KEY_1: (235,  60,  60, 255),  # red
+    keel.KEY_2: ( 60, 200,  80, 255),  # green
+    keel.KEY_3: ( 80, 130, 235, 255),  # blue
+    keel.KEY_4: (240, 220,  70, 255),  # yellow
 }
 
 # Don't write the PNG more than once per 200ms per key — saves cost when a
@@ -58,14 +58,14 @@ if not HERO_PATH.exists():
 
 # --- App ----------------------------------------------------------------
 
-app = pyge.App(title="Asset Hot Reload", width=600, height=600)
+app = keel.App(title="Asset Hot Reload", width=600, height=600)
 setup_renderer_2d(app)
 registry = app.setup_assets(watch_dirs=[str(HERO_PATH.parent)])
 
 hero_handle = registry.load(str(HERO_PATH))
 app.world.spawn(
-    pyge.Transform2D(x=300.0, y=300.0),
-    pyge.Sprite(texture_id=registry.get(hero_handle), width=256.0, height=256.0),
+    keel.Transform2D(x=300.0, y=300.0),
+    keel.Sprite(texture_id=registry.get(hero_handle), width=256.0, height=256.0),
 )
 
 
@@ -76,12 +76,12 @@ _was_down: set[int] = set()
 _last_write: dict[int, float] = {}
 
 
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def repaint_on_keypress(world, dt):
     """Detect a fresh keypress (down this tick, not down last tick) and rewrite
     the PNG. The FileWatcher's PRE_UPDATE poll picks up the file change next
     tick and runs registry.reload → atlas.reload → tex.write."""
-    if app.input.is_key_down(pyge.KEY_ESCAPE):
+    if app.input.is_key_down(keel.KEY_ESCAPE):
         app.window.close()
         return
 

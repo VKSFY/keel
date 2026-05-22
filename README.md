@@ -1,10 +1,12 @@
-# PyGE
+# Keel
+
+*The backbone of your game.*
 
 A Python game engine with archetype ECS, built on ModernGL and GLFW.
 
-## Why PyGE
+## Why Keel
 
-Pygame is old, single-threaded, and bound to CPU blits. Panda3D is a Python wrapper around a C++ engine, with the cognitive load that implies. Other Python options stop at hobby scope or no longer maintain a release. None of them provide a modern, data-oriented ECS as the core data model. PyGE is for developers who want to stay in Python and write structured game code on top of a real archetype-based ECS. The tradeoff is honest: Python has interpreter overhead, so PyGE pushes hot paths into numpy and C extensions (ModernGL, pymunk, pybullet) and exposes the rest as plain Python.
+Pygame is old, single-threaded, and bound to CPU blits. Panda3D is a Python wrapper around a C++ engine, with the cognitive load that implies. Other Python options stop at hobby scope or no longer maintain a release. None of them provide a modern, data-oriented ECS as the core data model. Keel is for developers who want to stay in Python and write structured game code on top of a real archetype-based ECS. The tradeoff is honest: Python has interpreter overhead, so Keel pushes hot paths into numpy and C extensions (ModernGL, pymunk, pybullet) and exposes the rest as plain Python.
 
 ## Features
 
@@ -22,7 +24,7 @@ Pygame is old, single-threaded, and bound to CPU blits. Panda3D is a Python wrap
 - Instanced sprite batcher: one draw call per texture group.
 - Texture atlas with up to 16 texture units.
 - Orthographic camera with translation, rotation, zoom.
-<!-- Tilemap class exists in pyge.renderer.tilemap but has no setup helper
+<!-- Tilemap class exists in keel.renderer.tilemap but has no setup helper
      and is not exported from the top-level package, so it's roadmap, not
      a feature. -->
 
@@ -42,7 +44,7 @@ Pygame is old, single-threaded, and bound to CPU blits. Panda3D is a Python wrap
 - 3D bridge to pybullet (DIRECT mode only, never GUI): rigid bodies, sphere/box/capsule shapes, contact events, ray tests.
 - Both bridges run at `Phase.POST_UPDATE`. ECS data is the source of truth on the way in; physics owns the result on the way out.
 
-> **Collision events and body types:** `CollisionEvent2D` and `CollisionEvent3D` only fire when at least one body is **dynamic** (`body_type=0`). Two kinematic or two static bodies that overlap will not emit events — this is pymunk/Bullet behavior, not a PyGE bug. Make at least one side dynamic if you need a collision to be detected. PyGE prints a one-time `UserWarning` the first time a second kinematic body joins `Physics2D` to flag the trap early.
+> **Collision events and body types:** `CollisionEvent2D` and `CollisionEvent3D` only fire when at least one body is **dynamic** (`body_type=0`). Two kinematic or two static bodies that overlap will not emit events — this is pymunk/Bullet behavior, not a Keel bug. Make at least one side dynamic if you need a collision to be detected. Keel prints a one-time `UserWarning` the first time a second kinematic body joins `Physics2D` to flag the trap early.
 
 ### Assets
 
@@ -56,7 +58,7 @@ Pygame is old, single-threaded, and bound to CPU blits. Panda3D is a Python wrap
 - ImGui world inspector (F1).
 - Per-system frame profiler overlay (F2).
 - 2D physics debug draw (F3).
-- CLI: `pyge new`, `pyge run`, `pyge build`.
+- CLI: `keel new`, `keel run`, `keel build`.
 
 ## Requirements
 
@@ -66,18 +68,18 @@ Pygame is old, single-threaded, and bound to CPU blits. Panda3D is a Python wrap
 
 ## Installation
 
-PyGE is not yet on PyPI. Install from source:
+Keel is not yet on PyPI. Install from source:
 
 ```bash
-git clone https://github.com/yourusername/pyge
-cd pyge
+git clone https://github.com/yourusername/keel
+cd keel
 pip install -e .
 ```
 
 Once it is published, the supported install will be:
 
 ```bash
-pip install pyge
+pip install keel
 ```
 
 ## Quickstart
@@ -85,55 +87,55 @@ pip install pyge
 The fastest way to start a project is the CLI scaffold:
 
 ```bash
-pyge new mygame
+keel new mygame
 cd mygame
-pyge run
+keel run
 ```
 
-`pyge new` creates the project tree, and `pyge run` watches every `.py` file in the directory and restarts the process on save.
+`keel new` creates the project tree, and `keel run` watches every `.py` file in the directory and restarts the process on save.
 
 A minimal working example, a ball that falls under gravity and bounces on a floor, looks like this:
 
 ```python
-import pyge
-from pyge.renderer import setup_renderer_2d
-from pyge.physics import setup_physics_2d
+import keel
+from keel.renderer import setup_renderer_2d
+from keel.physics import setup_physics_2d
 
-app = pyge.App(title="Bouncing Ball", width=800, height=600)
+app = keel.App(title="Bouncing Ball", width=800, height=600)
 setup_renderer_2d(app)
 setup_physics_2d(app, gravity_y=-980.0)
 
-tools = pyge.dev_tools(app)
+tools = keel.dev_tools(app)
 tools.debug_draw.set_visible(True)
 
 # Static floor.
 app.world.spawn(
-    pyge.Transform2D(x=400.0, y=50.0),
-    pyge.RigidBody2D(body_type=1),  # 1 = static
-    pyge.Collider2D(shape_type=1, width=600.0, height=20.0, elasticity=0.6),
+    keel.Transform2D(x=400.0, y=50.0),
+    keel.RigidBody2D(body_type=1),  # 1 = static
+    keel.Collider2D(shape_type=1, width=600.0, height=20.0, elasticity=0.6),
 )
 
 # Dynamic ball.
 app.world.spawn(
-    pyge.Transform2D(x=400.0, y=500.0),
-    pyge.RigidBody2D(mass=1.0),
-    pyge.Collider2D(shape_type=0, radius=20.0, elasticity=0.75),
+    keel.Transform2D(x=400.0, y=500.0),
+    keel.RigidBody2D(mass=1.0),
+    keel.Collider2D(shape_type=0, radius=20.0, elasticity=0.75),
 )
 
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def log_bounces(world, dt):
-    for event in world.read_events(pyge.CollisionEvent2D):
+    for event in world.read_events(keel.CollisionEvent2D):
         if event.impulse > 100.0:
             print(f"bounce: impulse={event.impulse:.0f}")
 
 app.run()
 ```
 
-That is a complete program. Save it as `main.py` and run it with `python main.py` or `pyge run`. Press F1 to open the world inspector, F2 for the profiler overlay, and F3 to toggle the debug draw of the physics shapes.
+That is a complete program. Save it as `main.py` and run it with `python main.py` or `keel run`. Press F1 to open the world inspector, F2 for the profiler overlay, and F3 to toggle the debug draw of the physics shapes.
 
 ## ECS concepts
 
-Components are plain dataclasses, decorated with `@pyge.component`. Field types map to numpy dtypes when possible (`float` to `float64`, `int` to `int64`, `bool` to `bool_`). Components with non-numpy fields fall back to a Python list column. Systems are plain functions registered with `@app.system(phase)`. The first two parameters are always `(world, dt)`. Any further parameters annotated with a registered resource type are injected by the scheduler.
+Components are plain dataclasses, decorated with `@keel.component`. Field types map to numpy dtypes when possible (`float` to `float64`, `int` to `int64`, `bool` to `bool_`). Components with non-numpy fields fall back to a Python list column. Systems are plain functions registered with `@app.system(phase)`. The first two parameters are always `(world, dt)`. Any further parameters annotated with a registered resource type are injected by the scheduler.
 
 Queries return per-archetype numpy array views. Mutations write through to the underlying storage in place:
 
@@ -149,7 +151,7 @@ Structural changes are deferred. Calling `world.spawn`, `world.despawn`, `world.
 
 ## Project structure
 
-`pyge new mygame` produces:
+`keel new mygame` produces:
 
 ```
 mygame/
@@ -181,7 +183,7 @@ mygame/
 ### Enable everything
 
 ```python
-tools = pyge.dev_tools(app)
+tools = keel.dev_tools(app)
 ```
 
 That call sets up the profiler, the inspector, and (if `setup_physics_2d` has already been called on this app) the debug draw. F1, F2, and F3 use edge-detected polling via `app.input.is_key_down`, checked once per sim tick. `KeyEvent`s are not used here because input events can be dropped on visual frames where no sim tick fires.
@@ -192,7 +194,7 @@ That call sets up the profiler, the inspector, and (if `setup_physics_2d` has al
 
 ## Roadmap
 
-- [ ] Tilemap (`pyge.renderer.tilemap.Tilemap` exists but has no `setup_tilemap` helper or top-level export yet)
+- [ ] Tilemap (`keel.renderer.tilemap.Tilemap` exists but has no `setup_tilemap` helper or top-level export yet)
 - [ ] Text rendering
 - [ ] Skeletal animation
 - [ ] Parallel system execution

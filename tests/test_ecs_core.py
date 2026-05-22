@@ -1,4 +1,4 @@
-"""Tests for the PyGE ECS core."""
+"""Tests for the Keel ECS core."""
 from __future__ import annotations
 
 import time
@@ -9,8 +9,8 @@ import pytest
 
 from unittest.mock import patch
 
-import pyge
-from pyge import Optional, Phase, Without, World, component, event
+import keel
+from keel import Optional, Phase, Without, World, component, event
 
 
 # --- Component / event fixtures used across tests ----------------------
@@ -64,7 +64,7 @@ class Config:
 # --- Component registration --------------------------------------------
 
 def test_numeric_component_gets_numpy_dtype():
-    meta = Position.__pyge_component__
+    meta = Position.__keel_component__
     assert meta.is_numpy is True
     assert meta.numpy_dtype is not None
     assert meta.numpy_dtype.names == ("x", "y")
@@ -72,7 +72,7 @@ def test_numeric_component_gets_numpy_dtype():
 
 
 def test_string_component_falls_back_to_list_storage():
-    meta = Name.__pyge_component__
+    meta = Name.__keel_component__
     assert meta.is_numpy is False
     assert meta.numpy_dtype is None
 
@@ -468,16 +468,16 @@ def test_app_and_world_share_same_scheduler():
     """App._scheduler must alias World.scheduler so @app.system and @world.system
     register into the one scheduler the run loop actually drives."""
     # Build an App without opening a real GLFW window or wiring callbacks.
-    with patch("pyge.Window"), patch("pyge.wire_callbacks", return_value=[]):
-        app = pyge.App()
+    with patch("keel.Window"), patch("keel.wire_callbacks", return_value=[]):
+        app = keel.App()
     assert app._scheduler is app.world.scheduler
 
 
 def test_world_system_runs_under_app_tick():
     """A system registered via @world.system fires when scheduler.tick is called
     on the shared scheduler — proving the two decorators share state."""
-    with patch("pyge.Window"), patch("pyge.wire_callbacks", return_value=[]):
-        app = pyge.App()
+    with patch("keel.Window"), patch("keel.wire_callbacks", return_value=[]):
+        app = keel.App()
 
     log: list[str] = []
 

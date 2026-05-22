@@ -5,8 +5,8 @@ Camera2D following the player. WASD to move, Escape to quit.
 """
 import numpy as np
 
-import pyge
-from pyge.renderer import setup_renderer_2d, setup_tilemap
+import keel
+from keel.renderer import setup_renderer_2d, setup_tilemap
 
 
 TILE = 32
@@ -14,12 +14,12 @@ ROWS, COLS = 15, 20  # 20*32=640 wide, 15*32=480 tall — fits 800x600
 SPEED = 220.0
 
 
-@pyge.component
+@keel.component
 class Player:
     pass
 
 
-app = pyge.App(title="Tilemap Demo", width=800, height=600)
+app = keel.App(title="Tilemap Demo", width=800, height=600)
 renderer = setup_renderer_2d(app)
 
 # Hand-paint two extra atlas tiles (the default white is at id=0):
@@ -42,32 +42,32 @@ setup_tilemap(app, tile_data, tile_width=TILE, tile_height=TILE)
 
 # Center the player in the playable area.
 app.world.spawn(
-    pyge.Transform2D(x=COLS * TILE / 2, y=ROWS * TILE / 2),
-    pyge.Sprite(texture_id=0, width=24.0, height=24.0, r=1.0, g=0.7, b=0.3),
+    keel.Transform2D(x=COLS * TILE / 2, y=ROWS * TILE / 2),
+    keel.Sprite(texture_id=0, width=24.0, height=24.0, r=1.0, g=0.7, b=0.3),
     Player(),
 )
 # Camera2D centered on (0, 0) by default — we move it to track the player.
-camera = app.world.spawn(pyge.Camera2D(x=COLS * TILE / 2, y=ROWS * TILE / 2, zoom=1.0))
+camera = app.world.spawn(keel.Camera2D(x=COLS * TILE / 2, y=ROWS * TILE / 2, zoom=1.0))
 app.world.flush()
 
 
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def move_player(world, dt):
-    if app.input.is_key_down(pyge.KEY_ESCAPE):
+    if app.input.is_key_down(keel.KEY_ESCAPE):
         app.window.close()
-    dx = (1.0 if app.input.is_key_down(pyge.KEY_D) else 0.0) - \
-         (1.0 if app.input.is_key_down(pyge.KEY_A) else 0.0)
-    dy = (1.0 if app.input.is_key_down(pyge.KEY_W) else 0.0) - \
-         (1.0 if app.input.is_key_down(pyge.KEY_S) else 0.0)
+    dx = (1.0 if app.input.is_key_down(keel.KEY_D) else 0.0) - \
+         (1.0 if app.input.is_key_down(keel.KEY_A) else 0.0)
+    dy = (1.0 if app.input.is_key_down(keel.KEY_W) else 0.0) - \
+         (1.0 if app.input.is_key_down(keel.KEY_S) else 0.0)
     px = py = 0.0
-    for transforms, _ in world.query(pyge.Transform2D, Player):
+    for transforms, _ in world.query(keel.Transform2D, Player):
         for i in range(len(transforms)):
             transforms["x"][i] += dx * SPEED * dt
             transforms["y"][i] += dy * SPEED * dt
             px = float(transforms["x"][i])
             py = float(transforms["y"][i])
     # Follow camera — write through to the structured array.
-    for cameras in world.query(pyge.Camera2D):
+    for cameras in world.query(keel.Camera2D):
         if len(cameras[0]) > 0:
             cameras[0]["x"][0] = px
             cameras[0]["y"][0] = py

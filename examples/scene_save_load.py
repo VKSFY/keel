@@ -1,6 +1,6 @@
 """scene_save_load.py — round-trip world state through atomic JSON.
 
-Demonstrates Scene.save / Scene.load: every @pyge.component (built-in or
+Demonstrates Scene.save / Scene.load: every @keel.component (built-in or
 custom) on every live entity is serialized to disk and read back. The example
 spawns 30 colored "particles" that bounce off the window edges, with the
 per-particle velocity stored on a custom Bouncer component so it survives
@@ -20,8 +20,8 @@ Controls:
 import random
 from pathlib import Path
 
-import pyge
-from pyge.renderer import setup_renderer_2d
+import keel
+from keel.renderer import setup_renderer_2d
 
 
 SAVE_PATH = Path(__file__).resolve().parent / "saves" / "scene.json"
@@ -29,7 +29,7 @@ SPAWN_COUNT = 30
 PARTICLE_SIZE = 24.0
 
 
-@pyge.component
+@keel.component
 class Bouncer:
     """Per-particle velocity. Numpy-backed floats round-trip as JSON numbers."""
     vx: float = 0.0
@@ -38,17 +38,17 @@ class Bouncer:
 
 # --- App ----------------------------------------------------------------
 
-app = pyge.App(title="Scene Save / Load", width=800, height=600)
+app = keel.App(title="Scene Save / Load", width=800, height=600)
 setup_renderer_2d(app)
 
 
 def spawn_particle():
     return app.world.spawn(
-        pyge.Transform2D(
+        keel.Transform2D(
             x=random.uniform(40.0, 760.0),
             y=random.uniform(40.0, 560.0),
         ),
-        pyge.Sprite(
+        keel.Sprite(
             texture_id=0,  # default white from setup_renderer_2d, tinted by r/g/b
             width=PARTICLE_SIZE,
             height=PARTICLE_SIZE,
@@ -97,35 +97,35 @@ def _edge_pressed(key: int) -> bool:
 
 # --- Systems ------------------------------------------------------------
 
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def hotkey_input(world, dt):
-    if app.input.is_key_down(pyge.KEY_ESCAPE):
+    if app.input.is_key_down(keel.KEY_ESCAPE):
         app.window.close()
         return
 
-    if _edge_pressed(pyge.KEY_F5):
+    if _edge_pressed(keel.KEY_F5):
         SAVE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        pyge.Scene.save(world, str(SAVE_PATH))
+        keel.Scene.save(world, str(SAVE_PATH))
         print(f"[scene] saved {entity_count()} entities → {SAVE_PATH}")
 
-    if _edge_pressed(pyge.KEY_F9):
+    if _edge_pressed(keel.KEY_F9):
         if not SAVE_PATH.exists():
             print(f"[scene] nothing to load: {SAVE_PATH} doesn't exist")
         else:
             clear_world()
-            ids = pyge.Scene.load(world, str(SAVE_PATH))
+            ids = keel.Scene.load(world, str(SAVE_PATH))
             print(f"[scene] loaded {len(ids)} entities from {SAVE_PATH}")
 
-    if _edge_pressed(pyge.KEY_F10):
+    if _edge_pressed(keel.KEY_F10):
         clear_world()
         print(f"[scene] cleared (entities now: {entity_count()})")
 
 
-@app.system(pyge.Phase.UPDATE)
+@app.system(keel.Phase.UPDATE)
 def bounce(world, dt):
     """Move every Bouncer by its velocity; reflect off the 800x600 window edges."""
     half = PARTICLE_SIZE * 0.5
-    for transforms, bouncers in world.query(pyge.Transform2D, Bouncer):
+    for transforms, bouncers in world.query(keel.Transform2D, Bouncer):
         for i in range(len(transforms)):
             x = transforms["x"][i] + bouncers["vx"][i] * dt
             y = transforms["y"][i] + bouncers["vy"][i] * dt

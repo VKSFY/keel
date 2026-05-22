@@ -10,10 +10,10 @@ import glfw
 import moderngl
 import pytest
 
-import pyge
-from pyge import Phase, Scheduler, Transform2D, World
-from pyge.renderer import setup_renderer_2d
-from pyge.text import (
+import keel
+from keel import Phase, Scheduler, Transform2D, World
+from keel.renderer import setup_renderer_2d
+from keel.text import (
     AtlasTooSmallError,
     BUILTIN_FONT,
     Font,
@@ -29,7 +29,7 @@ from pyge.text import (
     set_text,
     setup_text,
 )
-from pyge.text.text_renderer import _reset_label_text
+from keel.text.text_renderer import _reset_label_text
 
 
 # --- GL fixture ----------------------------------------------------------
@@ -45,7 +45,7 @@ def gl_ctx():
     glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
     if sys.platform == "darwin":
         glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, glfw.TRUE)
-    win = glfw.create_window(1, 1, "pyge-test", None, None)
+    win = glfw.create_window(1, 1, "keel-test", None, None)
     if not win:
         glfw.terminate()
         pytest.skip("Could not create offscreen GLFW window")
@@ -420,7 +420,7 @@ def test_load_font_assigns_sequential_ids(gl_ctx):
 
 
 def test_screen_projection_corners():
-    from pyge.text.text_renderer import _orthographic_screen_projection
+    from keel.text.text_renderer import _orthographic_screen_projection
     import numpy as np
 
     proj = _orthographic_screen_projection(800, 600)
@@ -449,18 +449,18 @@ def test_screen_projection_corners():
 
 
 def test_set_label_visible_round_trip(gl_ctx):
-    from pyge.text import set_label_visible
+    from keel.text import set_label_visible
 
     app, ts = _setup_app_with_text(gl_ctx)
     font = load_font(app, BUILTIN_FONT, size_px=24)
     font_id = ts.font_registry.id_of(font)
     eid = app.world.spawn(
-        pyge.Transform2D(x=10.0, y=10.0),
-        pyge.TextLabel(font_id=font_id, visible=True),
+        keel.Transform2D(x=10.0, y=10.0),
+        keel.TextLabel(font_id=font_id, visible=True),
     )
     app.world.flush()
-    assert app.world.get(eid, pyge.TextLabel)["visible"] is True
+    assert app.world.get(eid, keel.TextLabel)["visible"] is True
     set_label_visible(app.world, eid, False)
-    assert app.world.get(eid, pyge.TextLabel)["visible"] is False
+    assert app.world.get(eid, keel.TextLabel)["visible"] is False
     set_label_visible(app.world, eid, True)
-    assert app.world.get(eid, pyge.TextLabel)["visible"] is True
+    assert app.world.get(eid, keel.TextLabel)["visible"] is True
