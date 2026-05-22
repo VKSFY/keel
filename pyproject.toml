@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyge"
+version = "0.7.0"
+description = "PyGE — a Python ECS game engine"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "moderngl>=5.10",
+    "glfw>=2.6",
+    "Pillow>=10.0",
+    "watchdog>=3.0",
+    "pymunk>=7.0",
+    "pybullet>=3.2",
+    "freetype-py>=2.3",
+    "miniaudio>=1.59",
+]
+
+[project.optional-dependencies]
+# imgui-bundle reorganized its python_backends module between 1.5.x and
+# 1.6+/1.9x releases. PyGE's dev tooling probes known module paths in
+# pyge/tools/inspector.py and supports both layouts. We don't pin a single
+# version because cp313 / Python 3.13 only has wheels for 1.92+, while
+# older Pythons may only have wheels for 1.5.x. Use whatever pip installs.
+tools = ["imgui-bundle>=1.5"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+pyge = "pyge.cli.commands:main"
+
+[tool.setuptools.packages.find]
+include = ["pyge*"]
