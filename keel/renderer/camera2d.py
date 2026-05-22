@@ -46,7 +46,10 @@ def build_camera_matrix(
     """Return a (4, 4) float32 ortho-projection × view matrix for the given camera and viewport."""
     cx, cy, zoom, rotation = _read_camera(camera)
     if viewport_width <= 0 or viewport_height <= 0:
-        raise ValueError("viewport dimensions must be positive")
+        raise ValueError(
+            f"viewport dimensions must be positive, got "
+            f"({viewport_width}, {viewport_height})"
+        )
 
     theta = -rotation
     c = math.cos(theta)

@@ -143,7 +143,9 @@ class AudioEngine:
         if path in self._sounds:
             return
         if not os.path.exists(path):
-            raise FileNotFoundError(path)
+            raise FileNotFoundError(
+                f"sound file not found: {path!r} (supported: .wav, .mp3, .ogg, .flac)"
+            )
         decoded = miniaudio.decode_file(
             path,
             output_format=miniaudio.SampleFormat.SIGNED16,
@@ -215,7 +217,9 @@ class AudioEngine:
     ) -> None:
         """Stream `path` as music, replacing any current track."""
         if not os.path.exists(path):
-            raise FileNotFoundError(path)
+            raise FileNotFoundError(
+                f"music file not found: {path!r} (supported: .wav, .mp3, .ogg, .flac)"
+            )
         stream = miniaudio.stream_file(
             path,
             output_format=miniaudio.SampleFormat.SIGNED16,

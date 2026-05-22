@@ -546,3 +546,27 @@ def test_top_level_re_exports():
     assert keel.NoLoaderError is NoLoaderError
     assert keel.InvalidHandleError is InvalidHandleError
     assert keel.FileWatcher is FileWatcher
+
+
+# --- v0.1.1: hot reload failures now log a warning -------------------------
+
+def test_filewatcher_reload_failure_logs_a_warning(tmp_path, caplog):
+    import logging
+
+    class _ExplodingRegistry(_CountingRegistry):
+        def reload(self, handle):
+            raise RuntimeError("decode bombed")
+
+    reg = _ExplodingRegistry()
+    p = str(tmp_path / "boom.png")
+    reg.register(p)
+
+    fw = FileWatcher(reg)
+    fw._queue.put(p)
+
+    with caplog.at_level(logging.WARNING, logger="keel.assets.hot_reload"):
+        fw.poll()
+
+    msgs = [rec.getMessage() for rec in caplog.records]
+    assert any("hot reload failed" in m and "decode bombed" in m for m in msgs), \
+        f"expected a hot-reload warning naming the exception; got {msgs!r}"

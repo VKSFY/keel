@@ -116,19 +116,40 @@ class QueryResult:
 
 def build_query(world: Any, args: tuple) -> QueryResult:
     """Construct a QueryResult from positional query arguments."""
+    if not args:
+        raise TypeError(
+            "world.query() requires at least one component type — pass the "
+            "component classes you want to iterate over, e.g. "
+            "world.query(Transform2D, Velocity)."
+        )
     required: list[type] = []
     without: list[type] = []
     optional: list[type] = []
     slots: list[tuple[str, type]] = []
     for a in args:
         if isinstance(a, Without):
+            _check_component(a.type, "Without")
             without.append(a.type)
         elif isinstance(a, Optional):
+            _check_component(a.type, "Optional")
             optional.append(a.type)
             slots.append(("opt", a.type))
         elif isinstance(a, type):
+            _check_component(a, "query")
             required.append(a)
             slots.append(("req", a))
         else:
-            raise TypeError(f"Unsupported query argument: {a!r}")
+            raise TypeError(
+                f"world.query() argument {a!r} is not a component class or a "
+                "Without[...] / Optional[...] marker."
+            )
     return QueryResult(world, required, without, optional, slots)
+
+
+def _check_component(cls: type, context: str) -> None:
+    """Reject classes that aren't decorated with @keel.component."""
+    if not isinstance(cls, type) or getattr(cls, "__keel_component__", None) is None:
+        raise TypeError(
+            f"{context}: {cls!r} is not a @keel.component — decorate the "
+            "class with @keel.component before using it in a query."
+        )

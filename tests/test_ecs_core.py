@@ -573,3 +573,67 @@ def test_world_set_on_list_backed_component():
     w.flush()
     assert w.set(eid, Name, label="omega") is True
     assert w.get(eid, Name) == {"label": "omega"}
+
+
+# --- v0.1.1: QoL + hardened error handling ----------------------------------
+
+def test_world_set_unknown_field_raises_value_error_naming_the_field():
+    w = World()
+    eid = w.spawn(Position())
+    w.flush()
+    with pytest.raises(ValueError) as excinfo:
+        w.set(eid, Position, totally_made_up=42.0)
+    msg = str(excinfo.value)
+    assert "totally_made_up" in msg
+    assert "Position" in msg
+    assert str(eid) in msg
+
+
+def test_world_query_with_no_args_raises_type_error():
+    w = World()
+    with pytest.raises(TypeError, match="at least one component"):
+        list(w.query())
+
+
+def test_world_query_with_non_component_class_raises_type_error():
+    w = World()
+    with pytest.raises(TypeError, match="not a @keel.component"):
+        list(w.query(int))
+
+
+def test_world_query_without_marker_on_non_component_raises():
+    from keel import Without
+    w = World()
+    with pytest.raises(TypeError, match="not a @keel.component"):
+        list(w.query(Position, Without[int]))
+
+
+def test_world_get_on_null_entity_returns_none():
+    w = World()
+    # Entity id 0 is NULL_ENTITY; should not blow up the get path.
+    assert w.get(0, Position) is None
+
+
+def test_app_run_called_twice_raises_runtime_error():
+    """Once the loop exits the GLFW context is gone; a second run() must fail loudly."""
+    with patch("keel.Window"), patch("keel.wire_callbacks", return_value=[]), \
+         patch("keel.run_loop", lambda *a, **k: None), \
+         patch("keel.shutdown_glfw"):
+        app = keel.App()
+        app.run()
+        with pytest.raises(RuntimeError, match="already been called"):
+            app.run()
+
+
+def test_world_repr_shows_entity_and_archetype_counts():
+    w = World()
+    rep = repr(w)
+    assert "World" in rep
+    assert "entities=0" in rep
+    assert "archetypes=0" in rep
+    w.spawn(Position())
+    w.spawn(Position(), Health())
+    w.flush()
+    rep = repr(w)
+    assert "entities=2" in rep
+    assert "archetypes=2" in rep

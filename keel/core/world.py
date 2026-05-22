@@ -121,7 +121,12 @@ class World:
     # --- Entity API -----------------------------------------------------
 
     def spawn(self, *components: Any) -> int:
-        """Allocate an entity ID and queue a deferred spawn with the given components."""
+        """Allocate an entity id and queue a deferred spawn.
+
+        The new entity is NOT visible to queries until the next world.flush()
+        (the main loop calls flush at end-of-frame). If you spawn and need to
+        query the entity in the same code path, call world.flush() yourself.
+        """
         eid = self.entities.allocate()
         comp_map: dict[type, Any] = {}
         for c in components:
@@ -167,6 +172,11 @@ class World:
         """Return the (archetype, row) location of `entity`, or None if not alive."""
         return self._location.get(entity)
 
+    def __repr__(self) -> str:
+        entities = len(self._location)
+        archetypes = len(self.archetypes.all_archetypes())
+        return f"<World entities={entities} archetypes={archetypes}>"
+
     def get(self, entity: int, component_type: type) -> dict[str, Any] | None:
         """Return the entity's component fields as Python scalars, or None if absent."""
         loc = self._location.get(entity)
@@ -186,12 +196,25 @@ class World:
         return {name: getattr(inst, name) for name in meta.field_names}
 
     def set(self, entity: int, component_type: type, **fields: Any) -> bool:
-        """Write component fields in place. Returns False if the entity lacks the component."""
+        """Write component fields in place. Returns False if the entity lacks the component.
+
+        Raises ValueError if any keyword names a field that does not exist on
+        the component — the bad name, the component, and the entity id are
+        included in the message.
+        """
         loc = self._location.get(entity)
         if loc is None or component_type not in loc[0].component_types:
             return False
         if not fields:
             return True
+        meta = get_component_meta(component_type)
+        known = set(meta.field_names)
+        unknown = [name for name in fields if name not in known]
+        if unknown:
+            raise ValueError(
+                f"{component_type.__name__} has no field(s) {unknown!r} "
+                f"on entity {entity}; known fields: {meta.field_names}"
+            )
         arch, row = loc
         col = arch.columns[component_type]
         if isinstance(col, np.ndarray):

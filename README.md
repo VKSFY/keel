@@ -71,7 +71,7 @@ Pygame is old, single-threaded, and bound to CPU blits. Panda3D is a Python wrap
 Keel is not yet on PyPI. Install from source:
 
 ```bash
-git clone https://github.com/yourusername/keel
+git clone https://github.com/VKSFY/keel
 cd keel
 pip install -e .
 ```

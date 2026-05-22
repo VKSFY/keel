@@ -191,6 +191,7 @@ class App:
             self.window._glfw_window, self.world, self.input, window_obj=self.window
         )
         self._shutdown_hooks: list = []
+        self._has_run: bool = False
 
     @property
     def ctx(self) -> moderngl.Context:
@@ -230,7 +231,18 @@ class App:
                 pass
 
     def run(self) -> None:
-        """Block until the window closes, then run shutdown hooks and terminate GLFW."""
+        """Block until the window closes, then run shutdown hooks and terminate GLFW.
+
+        Single-shot: calling run() again after the loop has exited (the window
+        was closed, an exception propagated, etc.) raises RuntimeError. Build
+        a new App instead.
+        """
+        if self._has_run:
+            raise RuntimeError(
+                "App.run() has already been called — the window and GLFW "
+                "context were torn down on exit. Build a new App() instance."
+            )
+        self._has_run = True
         try:
             run_loop(self.window, self.world, self._scheduler)
         finally:

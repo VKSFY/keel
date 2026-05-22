@@ -576,3 +576,11 @@ def test_get_active_camera_matrix_default_when_no_camera(gl_ctx):
     mat = get_active_camera_matrix(app.world, 64, 64)
     expected = default_camera_matrix(64, 64)
     np.testing.assert_allclose(mat, expected)
+
+
+def test_build_camera_matrix_negative_viewport_message_names_values():
+    from keel.renderer.camera2d import build_camera_matrix
+    with pytest.raises(ValueError) as exc:
+        build_camera_matrix(Camera2D(), -8, 17)
+    msg = str(exc.value)
+    assert "-8" in msg and "17" in msg

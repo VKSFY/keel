@@ -41,7 +41,9 @@ def _read_camera(camera: Any) -> tuple[float, float, float, float, float, float,
 def build_projection_matrix(camera: Any, width: int, height: int) -> np.ndarray:
     """Standard right-handed perspective projection. Returns (4, 4) float32."""
     if width <= 0 or height <= 0:
-        raise ValueError("viewport dimensions must be positive")
+        raise ValueError(
+            f"viewport dimensions must be positive, got ({width}, {height})"
+        )
     _, _, _, _, _, _, fov, near, far = _read_camera(camera)
     if fov <= 0.0 or fov >= math.pi:
         raise ValueError(f"fov must be in (0, pi), got {fov}")

@@ -31,7 +31,10 @@ def _ensure_glfw_initialized() -> None:
         return
     glfw.set_error_callback(_glfw_error_callback)
     if not glfw.init():
-        raise RuntimeError("Failed to initialize GLFW")
+        raise RuntimeError(
+            "glfw.init() failed — likely no display / X server / wayland "
+            "session available. On headless Linux try `xvfb-run python …`."
+        )
     _GLFW_INITIALIZED = True
 
 
@@ -66,7 +69,11 @@ class Window:
 
         self._glfw_window = glfw.create_window(width, height, title, None, None)
         if not self._glfw_window:
-            raise RuntimeError("Failed to create GLFW window")
+            raise RuntimeError(
+                f"glfw.create_window({width}x{height}, title={title!r}) failed. "
+                "Most common causes: the host does not support OpenGL 3.3 Core, "
+                "or another window already owns the current GL context."
+            )
 
         glfw.make_context_current(self._glfw_window)
         glfw.swap_interval(1 if vsync else 0)

@@ -465,3 +465,30 @@ def test_audio_source_component_has_expected_fields():
     assert src.loop is True
     assert src.auto_play is False
     assert src.playing is False
+
+
+# --- v0.1.1: actionable FileNotFoundError messages -------------------------
+
+def test_load_missing_file_message_names_the_path(engine, tmp_path):
+    missing = str(tmp_path / "boom.wav")
+    with pytest.raises(FileNotFoundError) as exc:
+        engine.load(missing)
+    msg = str(exc.value)
+    assert "boom.wav" in msg
+    assert ".wav" in msg  # mentions supported extensions
+
+
+def test_play_music_missing_file_message_names_the_path(engine, tmp_path):
+    missing = str(tmp_path / "theme.ogg")
+    with pytest.raises(FileNotFoundError) as exc:
+        engine.play_music(missing)
+    msg = str(exc.value)
+    assert "theme.ogg" in msg
+    assert ".ogg" in msg
+
+
+def test_sound_handle_repr_includes_id_and_path():
+    h = SoundHandle(id=42, path="boom.wav")
+    rep = repr(h)
+    assert "42" in rep
+    assert "boom.wav" in rep

@@ -9,6 +9,7 @@ setup_assets so it runs once per frame.
 """
 from __future__ import annotations
 
+import logging
 import os
 import queue
 import threading
@@ -18,6 +19,8 @@ from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
 from .registry import AssetRegistry, _normalize
+
+_log = logging.getLogger(__name__)
 
 
 class _ReloadHandler(FileSystemEventHandler):
@@ -104,9 +107,14 @@ class FileWatcher:
             try:
                 self.registry.reload(handle)
                 reloads += 1
-            except Exception:
-                # Don't let a failed reload kill the loop — bad files happen.
-                pass
+            except Exception as exc:
+                # Don't let a failed reload kill the loop, but tell the user
+                # which path failed — silent reload failure is a notorious
+                # "why isn't my edited PNG updating?" trap.
+                _log.warning(
+                    "hot reload failed for %s: %s: %s",
+                    normalized, type(exc).__name__, exc,
+                )
         self.last_reload_count = reloads
         return reloads
 
