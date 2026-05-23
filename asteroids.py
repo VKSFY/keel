@@ -61,12 +61,13 @@ SPLIT_ANGLE_OFFSET = 0.4     # radians each child deflects from parent direction
 NEW_WAVE_MIN_SPEED = 40.0    # randomized asteroid speed lower bound (px/s)
 NEW_WAVE_MAX_SPEED = 80.0    # randomized asteroid speed upper bound (px/s)
 
-# Body types: Keel uses DYNAMIC=0, STATIC=1, KINEMATIC=2.
+# Body and shape type enums — IntEnum, so DYNAMIC == 0 / KINEMATIC == 2 still hold.
 # CollisionEvent2D does NOT fire for KINEMATIC-vs-KINEMATIC pairs (a pymunk
 # quirk), so bullets and asteroids run as DYNAMIC. The ship stays kinematic
 # so the player isn't pushed around by physics responses.
-DYNAMIC = 0
-KINEMATIC = 2
+DYNAMIC = keel.BodyType.DYNAMIC
+KINEMATIC = keel.BodyType.KINEMATIC
+CIRCLE = keel.ShapeType2D.CIRCLE
 
 # Collision filter bits — every collider can be in one or more categories,
 # and only collides with categories listed in its mask.
@@ -220,7 +221,7 @@ def spawn_ship(world, _phys):
         keel.Transform2D(x=SCREEN_CX, y=SCREEN_CY, rotation=0.0),
         keel.RigidBody2D(mass=1.0, body_type=KINEMATIC),
         keel.Collider2D(
-            shape_type=0,
+            shape_type=CIRCLE,
             radius=14.0,
             elasticity=0.0,
             friction=0.0,
@@ -243,7 +244,7 @@ def spawn_bullet(world, x, y, vx, vy):
         # DYNAMIC so the bullet-vs-asteroid collision callback fires.
         keel.RigidBody2D(mass=0.1, body_type=DYNAMIC),
         keel.Collider2D(
-            shape_type=0,
+            shape_type=CIRCLE,
             radius=3.0,
             elasticity=0.0,
             friction=0.0,
@@ -272,7 +273,7 @@ def _spawn_asteroid(world, size, x, y, vx, vy):
         # each frame so the asteroid keeps its constant drift speed.
         keel.RigidBody2D(mass=float(size), body_type=DYNAMIC),
         keel.Collider2D(
-            shape_type=0,
+            shape_type=CIRCLE,
             radius=radius,
             elasticity=0.0,
             friction=0.0,

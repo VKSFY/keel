@@ -56,10 +56,13 @@ WALL_THICKNESS = 10.0
 WIN_SCORE = 7
 RESET_DELAY = 1.5
 
-# Body type IDs that pymunk uses through Keel's RigidBody2D.
-DYNAMIC = 0
-STATIC = 1
-KINEMATIC = 2
+# Body and shape type enums from Keel — IntEnum so they're drop-in replacements
+# for the raw ints we used in older Pong revisions.
+DYNAMIC = keel.BodyType.DYNAMIC
+STATIC = keel.BodyType.STATIC
+KINEMATIC = keel.BodyType.KINEMATIC
+BOX = keel.ShapeType2D.BOX
+CIRCLE = keel.ShapeType2D.CIRCLE
 
 
 # ---------------------------------------------------------------------------
@@ -146,7 +149,7 @@ def spawn_paddle(x, marker_cls):
         keel.Transform2D(x=x, y=SCREEN_CY),
         keel.RigidBody2D(body_type=KINEMATIC),
         keel.Collider2D(
-            shape_type=1,
+            shape_type=BOX,
             width=PADDLE_W,
             height=PADDLE_H,
             friction=0.0,
@@ -163,7 +166,7 @@ def spawn_ball(vx, vy):
         keel.Transform2D(x=SCREEN_CX, y=SCREEN_CY),
         keel.RigidBody2D(mass=1.0, body_type=DYNAMIC, vel_x=vx, vel_y=vy),
         keel.Collider2D(
-            shape_type=0,
+            shape_type=CIRCLE,
             radius=BALL_RADIUS,
             friction=0.0,
             elasticity=1.0,
@@ -186,7 +189,7 @@ def spawn_wall(y):
         keel.Transform2D(x=SCREEN_CX, y=y),
         keel.RigidBody2D(body_type=STATIC),
         keel.Collider2D(
-            shape_type=1,
+            shape_type=BOX,
             width=float(WIDTH),
             height=WALL_THICKNESS,
             friction=0.0,

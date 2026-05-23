@@ -798,3 +798,56 @@ def test_kinematic_kinematic_no_collision_event_documented():
         "pymunk does not generate CollisionEvent2D between two kinematic "
         f"bodies, but got {len(events)} event(s) — engine behavior changed."
     )
+
+
+# ---------------------------------------------------------------------------
+# BodyType / ShapeType IntEnum exports (v0.1.4)
+# ---------------------------------------------------------------------------
+#
+# These enums are IntEnums: existing call-sites passing raw integers must
+# keep working, and the symbolic names must be reachable via both
+# `keel.physics` and the top-level `keel` namespace.
+
+def test_body_type_int_values():
+    assert keel.BodyType.DYNAMIC == 0
+    assert keel.BodyType.STATIC == 1
+    assert keel.BodyType.KINEMATIC == 2
+    # IntEnum identity: compares equal to plain ints (backwards compat).
+    assert int(keel.BodyType.STATIC) == 1
+
+
+def test_shape_type_2d_int_values():
+    assert keel.ShapeType2D.CIRCLE == 0
+    assert keel.ShapeType2D.BOX == 1
+    assert keel.ShapeType2D.SEGMENT == 2
+
+
+def test_shape_type_3d_int_values():
+    assert keel.ShapeType3D.SPHERE == 0
+    assert keel.ShapeType3D.BOX == 1
+    assert keel.ShapeType3D.CAPSULE == 2
+    assert keel.ShapeType3D.MESH == 3
+
+
+def test_rigid_body_2d_accepts_body_type_enum():
+    body = RigidBody2D(body_type=keel.BodyType.STATIC)
+    assert body.body_type == 1
+
+
+def test_collider_2d_accepts_shape_type_enum():
+    col = Collider2D(shape_type=keel.ShapeType2D.CIRCLE, radius=20.0)
+    assert col.shape_type == 0
+    assert col.radius == 20.0
+
+
+def test_enums_visible_from_top_level_keel():
+    # The top-level package re-exports each enum.
+    assert keel.BodyType is not None
+    assert keel.ShapeType2D is not None
+    assert keel.ShapeType3D is not None
+    # And from keel.physics.
+    from keel.physics import BodyType, ShapeType2D, ShapeType3D
+    assert BodyType is keel.BodyType
+    assert ShapeType2D is keel.ShapeType2D
+    assert ShapeType3D is keel.ShapeType3D
+

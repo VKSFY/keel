@@ -39,9 +39,11 @@ BALL_SPAWN_PADDING = 40.0          # keep ball spawn inside the wall border
 
 WALL_THICKNESS = 10.0
 
-# Body type ids used by Keel's RigidBody2D.
-DYNAMIC = 0
-STATIC = 1
+# Body + shape type enums from Keel — IntEnum so `==` against ints still works.
+DYNAMIC = keel.BodyType.DYNAMIC
+STATIC = keel.BodyType.STATIC
+BOX = keel.ShapeType2D.BOX
+CIRCLE = keel.ShapeType2D.CIRCLE
 
 
 # ---------------------------------------------------------------------------
@@ -72,7 +74,7 @@ def spawn_wall(x: float, y: float, w: float, h: float):
         keel.Transform2D(x=x, y=y),
         keel.RigidBody2D(body_type=STATIC),
         keel.Collider2D(
-            shape_type=1,
+            shape_type=BOX,
             width=w,
             height=h,
             friction=0.0,
@@ -95,7 +97,7 @@ def spawn_ball():
             vel_y=random.uniform(*BALL_SPEED_RANGE),
         ),
         keel.Collider2D(
-            shape_type=0,
+            shape_type=CIRCLE,
             radius=BALL_RADIUS,
             friction=0.0,
             elasticity=1.0,

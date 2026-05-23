@@ -24,16 +24,24 @@ SHAPE_TYPE_SEGMENT: int = 2
 class RigidBody2D:
     """Rigid-body parameters. Position/rotation come from Transform2D on the same entity.
 
-    body_type values:
-      0 = DYNAMIC    — affected by forces; collides with anything; emits
-                       CollisionEvent2D against any other body.
-      1 = STATIC     — immovable; emits CollisionEvent2D when a dynamic body
-                       touches it.
-      2 = KINEMATIC  — moved manually via Physics2D.set_velocity /
-                       set_position. **Does NOT emit CollisionEvent2D against
-                       another kinematic body** (pymunk callback behavior).
-                       Use DYNAMIC for entities that must detect collisions
-                       with each other.
+    Prefer `keel.BodyType` for body_type:
+
+        RigidBody2D(body_type=keel.BodyType.DYNAMIC)
+        RigidBody2D(body_type=keel.BodyType.STATIC)
+        RigidBody2D(body_type=keel.BodyType.KINEMATIC)
+
+    Raw ints still work (BodyType is an IntEnum, so DYNAMIC == 0).
+
+    body_type semantics:
+      DYNAMIC    — affected by forces; collides with anything; emits
+                   CollisionEvent2D against any other body.
+      STATIC     — immovable; emits CollisionEvent2D when a dynamic body
+                   touches it.
+      KINEMATIC  — moved manually via Physics2D.set_velocity /
+                   set_position. **Does NOT emit CollisionEvent2D against
+                   another kinematic body** (pymunk callback behavior).
+                   Use DYNAMIC for entities that must detect collisions
+                   with each other.
     """
     mass: float = 1.0
     moment: float = 0.0
@@ -46,7 +54,16 @@ class RigidBody2D:
 
 @component
 class Collider2D:
-    """Collision shape parameters. shape_type chooses which size fields apply."""
+    """Collision shape parameters. shape_type chooses which size fields apply.
+
+    Prefer `keel.ShapeType2D` for shape_type:
+
+        Collider2D(shape_type=keel.ShapeType2D.CIRCLE, radius=20.0)
+        Collider2D(shape_type=keel.ShapeType2D.BOX, width=64.0, height=32.0)
+        Collider2D(shape_type=keel.ShapeType2D.SEGMENT, width=200.0)
+
+    Raw ints still work — ShapeType2D is an IntEnum (CIRCLE == 0).
+    """
     shape_type: int = 0
     width: float = 32.0
     height: float = 32.0

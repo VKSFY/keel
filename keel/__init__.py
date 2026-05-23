@@ -39,6 +39,7 @@ from .components import TextLabel as TextLabel
 from .components import Transform2D as Transform2D
 from .components import Transform3D as Transform3D
 
+from .physics import BodyType as BodyType
 from .physics import Collider2D as Collider2D
 from .physics import Collider3D as Collider3D
 from .physics import CollisionEvent2D as CollisionEvent2D
@@ -47,6 +48,8 @@ from .physics import Physics2D as Physics2D
 from .physics import Physics3D as Physics3D
 from .physics import RigidBody2D as RigidBody2D
 from .physics import RigidBody3D as RigidBody3D
+from .physics import ShapeType2D as ShapeType2D
+from .physics import ShapeType3D as ShapeType3D
 from .physics import setup_physics_2d as setup_physics_2d
 from .physics import setup_physics_3d as setup_physics_3d
 
@@ -309,6 +312,7 @@ __all__ = [
     "AudioEngine",
     "AudioSetup",
     "AudioSource",
+    "BodyType",
     "BUILTIN_FONT",
     "Camera2D",
     "Camera3D",
@@ -353,6 +357,8 @@ __all__ = [
     "Scene",
     "SceneVersionError",
     "Scheduler",
+    "ShapeType2D",
+    "ShapeType3D",
     "SoundHandle",
     "Sprite",
     "TextLabel",

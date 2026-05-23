@@ -30,6 +30,7 @@ from .components3d import (
     SHAPE_TYPE_MESH as SHAPE_TYPE_3D_MESH,
     SHAPE_TYPE_SPHERE as SHAPE_TYPE_3D_SPHERE,
 )
+from .enums import BodyType, ShapeType2D, ShapeType3D
 from .physics2d import Physics2D
 from .physics3d import Physics3D
 
@@ -38,6 +39,7 @@ __all__ = [
     "BODY_TYPE_DYNAMIC",
     "BODY_TYPE_KINEMATIC",
     "BODY_TYPE_STATIC",
+    "BodyType",
     "Collider2D",
     "Collider3D",
     "CollisionEvent2D",
@@ -53,6 +55,8 @@ __all__ = [
     "SHAPE_TYPE_3D_CAPSULE",
     "SHAPE_TYPE_3D_MESH",
     "SHAPE_TYPE_3D_SPHERE",
+    "ShapeType2D",
+    "ShapeType3D",
     "setup_physics_2d",
     "setup_physics_3d",
 ]
