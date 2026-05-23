@@ -36,3 +36,6 @@ examples/saves/
 
 # Claude / agent metadata (kept locally only)
 .claude/
+Lib/
+Scripts/
+pyvenv.cfg
