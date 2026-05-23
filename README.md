@@ -79,7 +79,7 @@ pip install -e .
 Once it is published, the supported install will be:
 
 ```bash
-pip install keel
+pip install keelpy
 ```
 
 ## Quickstart
