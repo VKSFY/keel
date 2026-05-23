@@ -1,7 +1,7 @@
 """Keel — a Python game engine. Top-level public surface."""
 from __future__ import annotations
 
-__version__ = "0.1.3"
+__version__ = "0.8.1"
 
 import glfw as _glfw
 import moderngl

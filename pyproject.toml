@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "keelpy"
-version = "0.8.0"
+version = "0.8.1"
 description = "Keel — a Python ECS game engine"
 requires-python = ">=3.10"
 dependencies = [
@@ -14,19 +14,22 @@ dependencies = [
     "Pillow>=10.0",
     "watchdog>=3.0",
     "pymunk>=7.0",
-    "pybullet>=3.2",
     "freetype-py>=2.3",
     "miniaudio>=1.59",
 ]
 
 [project.optional-dependencies]
+# pybullet has no cross-platform wheels for macOS/Linux on recent CPython
+# (only Windows + a few older Python combos). It is required only for the
+# 3D physics bridge; everything else in Keel works without it.
+physics3d = ["pybullet>=3.2"]
 # imgui-bundle reorganized its python_backends module between 1.5.x and
 # 1.6+/1.9x releases. Keel's dev tooling probes known module paths in
 # keel/tools/inspector.py and supports both layouts. We don't pin a single
 # version because cp313 / Python 3.13 only has wheels for 1.92+, while
 # older Pythons may only have wheels for 1.5.x. Use whatever pip installs.
 tools = ["imgui-bundle>=1.5"]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "pybullet>=3.2"]
 
 [project.scripts]
 keel = "keel.cli.commands:main"

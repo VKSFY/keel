@@ -10,8 +10,18 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
-import pybullet as _pb
-import pybullet_data as _pb_data
+# pybullet has no cross-platform wheels for macOS/Linux on recent CPython.
+# Import lazily so `import keel` and `import keel.physics` keep working when
+# pybullet is not installed; Physics3D.__init__ raises a clear ImportError
+# pointing the user at the [physics3d] extra.
+try:
+    import pybullet as _pb
+    import pybullet_data as _pb_data
+    PYBULLET_AVAILABLE: bool = True
+except ImportError:  # pragma: no cover - exercised on macOS/Linux installs
+    _pb = None  # type: ignore[assignment]
+    _pb_data = None  # type: ignore[assignment]
+    PYBULLET_AVAILABLE = False
 
 from ..components.transform3d import Transform3D
 from ..core.query import Without
@@ -43,6 +53,11 @@ class Physics3D:
         gravity_z: float = 0.0,
         world: Any = None,
     ) -> None:
+        if not PYBULLET_AVAILABLE:
+            raise ImportError(
+                "3D physics requires pybullet. "
+                "Install it with: pip install keelpy[physics3d]"
+            )
         self._p = _pb
         # Headless-only: GUI mode is forbidden by Phase 6's quality rules.
         self._client: int = _pb.connect(_pb.DIRECT)

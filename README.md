@@ -16,10 +16,22 @@ Keel is on PyPI. The distribution name is `keelpy`, the import name is `keel`:
 pip install keelpy
 ```
 
-For the developer tools overlay (ImGui inspector and profiler), install the optional extra:
+For 3D physics (requires pybullet, which only has wheels on Windows and a few older Python combinations until cross-platform wheels exist on PyPI):
+
+```bash
+pip install keelpy[physics3d]
+```
+
+For developer tooling (ImGui inspector, profiler, debug draw):
 
 ```bash
 pip install keelpy[tools]
+```
+
+For everything:
+
+```bash
+pip install "keelpy[physics3d,tools]"
 ```
 
 To install from source:
@@ -32,7 +44,7 @@ pip install -e .
 
 ### Requirements
 
-Python 3.11 or newer. A GPU and driver supporting OpenGL 3.3 Core. All Python dependencies (`numpy`, `moderngl`, `glfw`, `Pillow`, `watchdog`, `pymunk`, `pybullet`, `freetype-py`, `miniaudio`) install transitively from PyPI. `imgui-bundle` is only pulled in by the `[tools]` extra.
+Python 3.11 or newer. A GPU and driver supporting OpenGL 3.3 Core. The base install pulls in `numpy`, `moderngl`, `glfw`, `Pillow`, `watchdog`, `pymunk`, `freetype-py`, and `miniaudio` transitively from PyPI. `pybullet` is optional (Windows-only until cross-platform wheels exist); install it with the `[physics3d]` extra. `imgui-bundle` is also optional and ships with the `[tools]` extra.
 
 ## Quickstart
 

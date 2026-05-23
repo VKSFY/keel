@@ -8,6 +8,19 @@ from typing import Any
 import pymunk
 import pytest
 
+# pybullet is an optional dependency: skip every Physics3D-touching test if
+# it is not importable, but keep the 2D pymunk tests running everywhere.
+try:
+    import pybullet  # noqa: F401
+    PYBULLET_AVAILABLE = True
+except ImportError:
+    PYBULLET_AVAILABLE = False
+
+pytest3d = pytest.mark.skipif(
+    not PYBULLET_AVAILABLE,
+    reason="pybullet not installed (pip install keelpy[physics3d])",
+)
+
 import keel
 from keel import (
     Collider2D,
@@ -438,7 +451,12 @@ def test_setup_physics_2d_registers_shutdown_hook():
 
 
 # --- Physics3D ------------------------------------------------------------
+#
+# Every test below instantiates Physics3D or calls setup_physics_3d, which
+# touch pybullet. The @pytest3d marker skips them when pybullet is not
+# installed instead of erroring on collection / instantiation.
 
+@pytest3d
 def test_physics3d_init_uses_direct_mode():
     phys = Physics3D()
     try:
@@ -448,6 +466,7 @@ def test_physics3d_init_uses_direct_mode():
         phys.disconnect()
 
 
+@pytest3d
 def test_physics3d_sync_creates_body():
     phys = Physics3D(gravity_y=0.0)
     try:
@@ -464,6 +483,7 @@ def test_physics3d_sync_creates_body():
         phys.disconnect()
 
 
+@pytest3d
 def test_physics3d_sync_from_updates_transform():
     phys = Physics3D(gravity_y=-9.81)
     try:
@@ -484,6 +504,7 @@ def test_physics3d_sync_from_updates_transform():
         phys.disconnect()
 
 
+@pytest3d
 def test_physics3d_static_body_transform_not_overwritten():
     phys = Physics3D(gravity_y=-9.81)
     try:
@@ -504,6 +525,7 @@ def test_physics3d_static_body_transform_not_overwritten():
         phys.disconnect()
 
 
+@pytest3d
 def test_physics3d_apply_impulse_no_error():
     phys = Physics3D(gravity_y=0.0)
     try:
@@ -523,6 +545,7 @@ def test_physics3d_apply_impulse_no_error():
         phys.disconnect()
 
 
+@pytest3d
 def test_physics3d_set_velocity_mirrors_to_ecs_when_world_attached():
     """Phase-7 parity: phys.set_velocity also writes RigidBody3D fields."""
     world = World()
@@ -549,6 +572,7 @@ def test_physics3d_set_velocity_mirrors_to_ecs_when_world_attached():
         phys.disconnect()
 
 
+@pytest3d
 def test_physics3d_set_velocity_no_op_when_world_is_none():
     """Without a world, set_velocity touches only the pybullet body."""
     phys = Physics3D(gravity_y=0.0)  # no world
@@ -573,6 +597,7 @@ def test_physics3d_set_velocity_no_op_when_world_is_none():
         phys.disconnect()
 
 
+@pytest3d
 def test_physics3d_set_position_updates_transform3d():
     """set_position teleports the body AND writes Transform3D."""
     world = World()
@@ -596,6 +621,7 @@ def test_physics3d_set_position_updates_transform3d():
         phys.disconnect()
 
 
+@pytest3d
 def test_physics3d_set_position_no_op_for_unknown_entity():
     phys = Physics3D()
     try:
@@ -604,6 +630,7 @@ def test_physics3d_set_position_no_op_for_unknown_entity():
         phys.disconnect()
 
 
+@pytest3d
 def test_physics3d_raycast_empty_world():
     phys = Physics3D()
     try:
@@ -612,6 +639,7 @@ def test_physics3d_raycast_empty_world():
         phys.disconnect()
 
 
+@pytest3d
 def test_physics3d_sphere_collision_shape():
     phys = Physics3D()
     try:
@@ -631,6 +659,7 @@ def test_physics3d_sphere_collision_shape():
         phys.disconnect()
 
 
+@pytest3d
 def test_physics3d_box_collision_shape():
     phys = Physics3D()
     try:
@@ -647,6 +676,7 @@ def test_physics3d_box_collision_shape():
         phys.disconnect()
 
 
+@pytest3d
 def test_physics3d_disconnect_idempotent():
     phys = Physics3D()
     phys.disconnect()
@@ -655,6 +685,7 @@ def test_physics3d_disconnect_idempotent():
     assert phys.connected is False
 
 
+@pytest3d
 def test_physics3d_warns_on_collider_without_rigidbody():
     phys = Physics3D()
     try:
@@ -674,6 +705,7 @@ def test_physics3d_warns_on_collider_without_rigidbody():
 
 # --- setup_physics_3d -----------------------------------------------------
 
+@pytest3d
 def test_setup_physics_3d_inserts_resource():
     app = _fake_app()
     phys = setup_physics_3d(app)
@@ -683,6 +715,7 @@ def test_setup_physics_3d_inserts_resource():
         phys.disconnect()
 
 
+@pytest3d
 def test_setup_physics_3d_registers_post_update_system():
     app = _fake_app()
     phys = setup_physics_3d(app)
@@ -693,6 +726,7 @@ def test_setup_physics_3d_registers_post_update_system():
         phys.disconnect()
 
 
+@pytest3d
 def test_setup_physics_3d_idempotent():
     app = _fake_app()
     a = setup_physics_3d(app)
@@ -704,6 +738,7 @@ def test_setup_physics_3d_idempotent():
         a.disconnect()
 
 
+@pytest3d
 def test_setup_physics_3d_registers_shutdown_hook():
     app = _fake_app()
     phys = setup_physics_3d(app)
@@ -715,6 +750,7 @@ def test_setup_physics_3d_registers_shutdown_hook():
 
 # --- 2D + 3D coexistence + general --------------------------------------
 
+@pytest3d
 def test_2d_and_3d_physics_coexist_on_same_app():
     app = _fake_app()
     p2 = setup_physics_2d(app)

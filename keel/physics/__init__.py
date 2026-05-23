@@ -32,6 +32,10 @@ from .components3d import (
 )
 from .enums import BodyType, ShapeType2D, ShapeType3D
 from .physics2d import Physics2D
+# Physics3D imports pybullet lazily and PYBULLET_AVAILABLE reflects the
+# import outcome. Importing Physics3D itself never raises — Physics3D
+# .__init__ does, with a clear message.
+from .physics3d import PYBULLET_AVAILABLE as PYBULLET_AVAILABLE
 from .physics3d import Physics3D
 
 
@@ -44,6 +48,7 @@ __all__ = [
     "Collider3D",
     "CollisionEvent2D",
     "CollisionEvent3D",
+    "PYBULLET_AVAILABLE",
     "Physics2D",
     "Physics3D",
     "RigidBody2D",
@@ -98,7 +103,15 @@ def setup_physics_3d(
     app: Any,
     gravity_y: float = -9.81,
 ) -> Physics3D:
-    """Create + register the pybullet bridge on `app`. Idempotent — second call is a no-op."""
+    """Create + register the pybullet bridge on `app`. Idempotent — second call is a no-op.
+
+    Raises ImportError with install guidance when pybullet is not installed.
+    """
+    if not PYBULLET_AVAILABLE:
+        raise ImportError(
+            "3D physics requires pybullet. "
+            "Install it with: pip install keelpy[physics3d]"
+        )
     existing = getattr(app, "_keel_physics_3d", None)
     if existing is not None:
         return existing
