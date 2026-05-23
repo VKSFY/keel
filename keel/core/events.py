@@ -15,7 +15,7 @@ def event(cls: type) -> type:
     """Register a class as an event type, dataclass-decorating it if needed."""
     if not dataclasses.is_dataclass(cls):
         cls = dataclass(cls)
-    cls.__keel_event__ = True
+    setattr(cls, "__keel_event__", True)
     return cls
 
 

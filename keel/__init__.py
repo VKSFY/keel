@@ -6,99 +6,111 @@ __version__ = "0.1.0"
 import glfw as _glfw
 import moderngl
 
-from .assets import (
-    AssetHandle,
-    AssetNotFoundError,
-    AssetRegistry,
-    FileWatcher,
-    InvalidHandleError,
-    NoLoaderError,
-    Scene,
-    SceneVersionError,
-    setup_assets,
-)
-from .audio import (
-    AudioEngine,
-    AudioSetup,
-    AudioSource,
-    SoundHandle,
-    play_music,
-    play_sound,
-    set_volume,
-    setup_audio,
-    stop_music,
-    stop_sound,
-)
+# Re-exports use the `from X import Y as Y` alias form so Pylance treats them
+# as intentional public re-exports rather than internal side imports — this is
+# what makes `from keel import setup_renderer_2d` autocomplete correctly in
+# editors that use Pyright (VSCode/Cursor) for static analysis.
+from .assets import AssetHandle as AssetHandle
+from .assets import AssetNotFoundError as AssetNotFoundError
+from .assets import AssetRegistry as AssetRegistry
+from .assets import FileWatcher as FileWatcher
+from .assets import InvalidHandleError as InvalidHandleError
+from .assets import NoLoaderError as NoLoaderError
+from .assets import Scene as Scene
+from .assets import SceneVersionError as SceneVersionError
+from .assets import setup_assets as setup_assets
+
+from .audio import AudioEngine as AudioEngine
+from .audio import AudioSetup as AudioSetup
+from .audio import AudioSource as AudioSource
+from .audio import SoundHandle as SoundHandle
+from .audio import play_music as play_music
+from .audio import play_sound as play_sound
+from .audio import set_volume as set_volume
+from .audio import setup_audio as setup_audio
+from .audio import stop_music as stop_music
+from .audio import stop_sound as stop_sound
 
 _setup_assets = setup_assets
-from .components import MeshRenderer, Sprite, TextLabel, Transform2D, Transform3D
-from .physics import (
-    Collider2D,
-    Collider3D,
-    CollisionEvent2D,
-    CollisionEvent3D,
-    Physics2D,
-    Physics3D,
-    RigidBody2D,
-    RigidBody3D,
-    setup_physics_2d,
-    setup_physics_3d,
-)
-from .core import (
-    CommandBuffer,
-    NULL_ENTITY,
-    Optional,
-    Phase,
-    QueryResult,
-    Without,
-    World,
-    component,
-    event,
-)
-from .core.scheduler import Scheduler
-from .gamepad import GamepadState, setup_gamepad
-from .input import (
-    GamepadAxisEvent,
-    GamepadButtonEvent,
-    InputState,
-    KeyEvent,
-    MouseButtonEvent,
-    MouseMoveEvent,
-    MouseScrollEvent,
-    WindowResizeEvent,
-    make_callbacks,
-    wire_callbacks,
-)
-from .loop import FIXED_DT, FixedStepDriver, RenderState, run_loop
-from .renderer import (
-    Renderer2DSetup,
-    Tilemap,
-    TilemapSetup,
-    setup_renderer_2d,
-    setup_tilemap,
-)
-from .renderer.camera2d import Camera2D
-from .renderer3d import (
-    Camera3D,
-    DirectionalLight,
-    PointLight,
-    Renderer3D,
-    Renderer3DSetup,
-    setup_renderer_3d,
-)
-from .text import (
-    BUILTIN_FONT,
-    Font,
-    TextSetup,
-    clear_text,
-    get_text,
-    load_font,
-    set_label_visible,
-    set_text,
-    setup_text,
-)
-from .tools import setup_debug_draw, setup_inspector, setup_profiler
-from .window import Window, glfw_initialized, shutdown_glfw
+
+from .components import MeshRenderer as MeshRenderer
+from .components import Sprite as Sprite
+from .components import TextLabel as TextLabel
+from .components import Transform2D as Transform2D
+from .components import Transform3D as Transform3D
+
+from .physics import Collider2D as Collider2D
+from .physics import Collider3D as Collider3D
+from .physics import CollisionEvent2D as CollisionEvent2D
+from .physics import CollisionEvent3D as CollisionEvent3D
+from .physics import Physics2D as Physics2D
+from .physics import Physics3D as Physics3D
+from .physics import RigidBody2D as RigidBody2D
+from .physics import RigidBody3D as RigidBody3D
+from .physics import setup_physics_2d as setup_physics_2d
+from .physics import setup_physics_3d as setup_physics_3d
+
+from .core import CommandBuffer as CommandBuffer
+from .core import NULL_ENTITY as NULL_ENTITY
+from .core import Optional as Optional
+from .core import Phase as Phase
+from .core import QueryResult as QueryResult
+from .core import Without as Without
+from .core import World as World
+from .core import component as component
+from .core import event as event
+from .core.scheduler import Scheduler as Scheduler
+
+from .gamepad import GamepadState as GamepadState
+from .gamepad import setup_gamepad as setup_gamepad
+
+from .input import GamepadAxisEvent as GamepadAxisEvent
+from .input import GamepadButtonEvent as GamepadButtonEvent
+from .input import InputState as InputState
+from .input import KeyEvent as KeyEvent
+from .input import MouseButtonEvent as MouseButtonEvent
+from .input import MouseMoveEvent as MouseMoveEvent
+from .input import MouseScrollEvent as MouseScrollEvent
+from .input import WindowResizeEvent as WindowResizeEvent
+from .input import make_callbacks as make_callbacks
+from .input import wire_callbacks as wire_callbacks
+
+from .loop import FIXED_DT as FIXED_DT
+from .loop import FixedStepDriver as FixedStepDriver
+from .loop import RenderState as RenderState
+from .loop import run_loop as run_loop
+
+from .renderer import Renderer2DSetup as Renderer2DSetup
+from .renderer import Tilemap as Tilemap
+from .renderer import TilemapSetup as TilemapSetup
+from .renderer import setup_renderer_2d as setup_renderer_2d
+from .renderer import setup_tilemap as setup_tilemap
+from .renderer.camera2d import Camera2D as Camera2D
+
+from .renderer3d import Camera3D as Camera3D
+from .renderer3d import DirectionalLight as DirectionalLight
+from .renderer3d import PointLight as PointLight
+from .renderer3d import Renderer3D as Renderer3D
+from .renderer3d import Renderer3DSetup as Renderer3DSetup
+from .renderer3d import setup_renderer_3d as setup_renderer_3d
+
+from .text import BUILTIN_FONT as BUILTIN_FONT
+from .text import Font as Font
+from .text import TextSetup as TextSetup
+from .text import clear_text as clear_text
+from .text import get_text as get_text
+from .text import load_font as load_font
+from .text import set_label_visible as set_label_visible
+from .text import set_text as set_text
+from .text import setup_text as setup_text
+
+from .tools import setup_debug_draw as setup_debug_draw
+from .tools import setup_inspector as setup_inspector
+from .tools import setup_profiler as setup_profiler
+
+from .window import Window as Window
+from .window import glfw_initialized as glfw_initialized
+from .window import shutdown_glfw as shutdown_glfw
 
 
 # --- GLFW action constants -------------------------------------------------
@@ -285,7 +297,7 @@ def dev_tools(app: "App") -> DevTools:
     if existing is not None:
         return existing
     tools = DevTools(app)
-    app._keel_dev_tools = tools
+    setattr(app, "_keel_dev_tools", tools)
     return tools
 
 

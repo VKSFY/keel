@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 import moderngl
+import numpy as np
 
 from ..components import Sprite, Transform2D
 from ..core import Phase
@@ -81,16 +82,14 @@ def setup_renderer_2d(app: Any) -> "Renderer2DSetup":
     try:
         from ..assets import AssetRegistry
         from ..assets.loaders.texture_loader import make_texture_loader
-    except ImportError:  # pragma: no cover - defensive
-        AssetRegistry = None
-        make_texture_loader = None
-    if AssetRegistry is not None:
         registry = app.world.get_resource(AssetRegistry)
         if registry is not None:
             registry.register_loader(
                 [".png", ".jpg", ".jpeg", ".bmp", ".tga"],
                 make_texture_loader(atlas),
             )
+    except ImportError:  # pragma: no cover - defensive
+        pass
 
     @app.system(Phase.RENDER)
     def render_2d(
@@ -125,7 +124,7 @@ def setup_renderer_2d(app: Any) -> "Renderer2DSetup":
 
 def setup_tilemap(
     app: Any,
-    tile_data: "np.ndarray",
+    tile_data: np.ndarray,
     tile_width: int = 32,
     tile_height: int = 32,
 ) -> TilemapSetup:
@@ -136,7 +135,6 @@ def setup_tilemap(
     draws every chunk before SpriteBatch2D runs. Subsequent calls re-bake
     the chunks against the new tile data without registering a second system.
     """
-    import numpy as np
 
     if not app.world.has_resource(SpriteBatch2D):
         raise RuntimeError(

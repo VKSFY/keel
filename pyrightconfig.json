@@ -1,0 +1,9 @@
+{
+    "include": ["keel", "examples", "tests"],
+    "exclude": ["dist", "build", "*.egg-info", "**/__pycache__"],
+    "pythonVersion": "3.11",
+    "typeCheckingMode": "basic",
+    "reportMissingImports": true,
+    "reportMissingModuleSource": false,
+    "useLibraryCodeForTypes": true
+}

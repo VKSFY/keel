@@ -1,0 +1,12 @@
+{
+    "python.analysis.extraPaths": ["."],
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.indexing": true,
+    "python.analysis.packageIndexDepths": [
+        {
+            "name": "keel",
+            "depth": 5,
+            "includeAllSymbols": true
+        }
+    ]
+}

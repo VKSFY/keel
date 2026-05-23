@@ -77,11 +77,15 @@ def component(cls: type) -> type:
         numpy_dtype = None
         is_numpy = False
 
-    cls.__keel_component__ = ComponentMeta(
-        cls=cls,
-        field_names=field_names,
-        numpy_dtype=numpy_dtype,
-        is_numpy=is_numpy,
+    setattr(
+        cls,
+        "__keel_component__",
+        ComponentMeta(
+            cls=cls,
+            field_names=field_names,
+            numpy_dtype=numpy_dtype,
+            is_numpy=is_numpy,
+        ),
     )
     return cls
 

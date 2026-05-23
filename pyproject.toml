@@ -33,3 +33,6 @@ keel = "keel.cli.commands:main"
 
 [tool.setuptools.packages.find]
 include = ["keel*"]
+
+[tool.setuptools.package-data]
+keel = ["py.typed"]
