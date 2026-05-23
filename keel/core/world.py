@@ -118,7 +118,17 @@ class World:
         self._location: dict[int, tuple[Archetype, int]] = {}
         self._resources: dict[type, Any] = {}
 
-    # --- Entity API -----------------------------------------------------
+    def __repr__(self) -> str:
+        entities = len(self._location)
+        archetypes = len(self.archetypes.all_archetypes())
+        return f"<World entities={entities} archetypes={archetypes}>"
+
+    # ----------------------------------------------------------------------
+    # Entity lifecycle — spawn / despawn / structural component changes.
+    # Every method here just enqueues a CommandBuffer command; the change
+    # only becomes visible to queries after world.flush() (called by the
+    # main loop at end-of-frame, or manually by you).
+    # ----------------------------------------------------------------------
 
     def spawn(self, *components: Any) -> int:
         """Allocate an entity id and queue a deferred spawn.
@@ -149,6 +159,11 @@ class World:
         """Queue a deferred remove-component for the given entity."""
         self.commands.remove_component(entity, component_type)
 
+    # ----------------------------------------------------------------------
+    # Entity inspection — synchronous reads + writes against entities that
+    # are already in an archetype (i.e. were spawned and then flushed).
+    # ----------------------------------------------------------------------
+
     def is_alive(self, entity: int) -> bool:
         """Return True if `entity` has been flushed and is currently in an archetype."""
         return entity in self._location
@@ -171,11 +186,6 @@ class World:
     def location_of(self, entity: int) -> tuple[Archetype, int] | None:
         """Return the (archetype, row) location of `entity`, or None if not alive."""
         return self._location.get(entity)
-
-    def __repr__(self) -> str:
-        entities = len(self._location)
-        archetypes = len(self.archetypes.all_archetypes())
-        return f"<World entities={entities} archetypes={archetypes}>"
 
     def get(self, entity: int, component_type: type) -> dict[str, Any] | None:
         """Return the entity's component fields as Python scalars, or None if absent."""
@@ -226,13 +236,19 @@ class World:
                 setattr(inst, name, value)
         return True
 
-    # --- Query API ------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Query API — iterate component column views by required / Without /
+    # Optional component types. See keel/core/query.py for the markers.
+    # ----------------------------------------------------------------------
 
     def query(self, *args: Any) -> QueryResult:
         """Build a query over component types and Without[]/Optional[] markers."""
         return build_query(self, args)
 
-    # --- Resources ------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Resources — singleton objects keyed by their type, injected into
+    # systems via parameter type annotations.
+    # ----------------------------------------------------------------------
 
     def insert_resource(self, resource: Any, *, type_: type | None = None) -> None:
         """Register `resource` as a singleton injectable by its type (or by `type_` override)."""
@@ -251,7 +267,9 @@ class World:
         """Remove and return the registered resource of type `type_`, or None."""
         return self._resources.pop(type_, None)
 
-    # --- Events ---------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Events — queued per-type each frame, drained by world.events.clear().
+    # ----------------------------------------------------------------------
 
     def emit(self, event_instance: Any) -> None:
         """Queue an event for systems to read this frame."""
@@ -261,7 +279,9 @@ class World:
         """Iterate over events of `event_type` queued this frame."""
         return self.events.read(event_type)
 
-    # --- Systems --------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Systems — phase-ordered functions the scheduler runs each tick.
+    # ----------------------------------------------------------------------
 
     def system(self, phase: Phase) -> Callable[[Callable], Callable]:
         """Decorator: register the wrapped function as a system in `phase`."""
@@ -276,7 +296,10 @@ class World:
         self.scheduler.run(self, dt)
         self.flush()
 
-    # --- Flush ----------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Flush — apply every buffered structural change. The main loop calls
+    # this at end-of-frame; tests / inline code call it explicitly.
+    # ----------------------------------------------------------------------
 
     def flush(self) -> None:
         """Apply every queued structural change in the order it was buffered."""
@@ -292,7 +315,9 @@ class World:
             elif t is _RemoveComponent:
                 self._do_remove(cmd.entity, cmd.component_type)
 
-    # --- Internal: command application ---------------------------------
+    # ----------------------------------------------------------------------
+    # Internal: how each buffered command actually lands in the archetypes.
+    # ----------------------------------------------------------------------
 
     def _do_spawn(self, eid: int, components: dict[type, Any]) -> None:
         cset = frozenset(components.keys())

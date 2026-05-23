@@ -69,7 +69,10 @@ class Physics2D:
         self.world: Any = world
         self._setup_collision_handler()
 
-    # --- Collision handler --------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Collision handler — pymunk's post_solve callback appends contact info
+    # to a tiny buffer; the main thread drains it in _emit_collisions().
+    # ----------------------------------------------------------------------
 
     def _setup_collision_handler(self) -> None:
         """Register a single default-pair handler. Pymunk 7's on_collision API."""
@@ -101,7 +104,10 @@ class Physics2D:
         # collision_type_a/b = None => default handler that fires for every pair.
         self._space.on_collision(post_solve=_post_solve)
 
-    # --- Per-tick API -------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Per-tick API — called by the POST_UPDATE physics_2d_system in this
+    # order: sync_to_physics → step → sync_from_physics → _emit_collisions.
+    # ----------------------------------------------------------------------
 
     def sync_to_physics(self, world: Any) -> None:
         """Build, update, or remove pymunk objects so they mirror current ECS state."""
@@ -177,7 +183,11 @@ class Physics2D:
                 r_vy[i] = vel.y
                 r_avel[i] = body.angular_velocity
 
-    # --- Convenience controls ---------------------------------------------
+    # ----------------------------------------------------------------------
+    # Convenience controls — write into a body from gameplay code. Each one
+    # also mirrors the value back into the ECS so the next sync_to_physics
+    # doesn't undo the write.
+    # ----------------------------------------------------------------------
 
     def apply_impulse(self, entity_id: int, impulse_x: float, impulse_y: float) -> None:
         """Apply a world-space impulse at the body's center of mass. No-op if absent."""
@@ -288,14 +298,18 @@ class Physics2D:
             )
         self._collision_buffer.clear()
 
-    # --- Cleanup ----------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Cleanup — called when the owning App shuts down.
+    # ----------------------------------------------------------------------
 
     def cleanup(self) -> None:
         """Remove every body and shape from the pymunk space. Idempotent."""
         for eid in list(self._bodies.keys()):
             self._remove_entity(eid)
 
-    # --- Internals --------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Internals — body / shape construction, archetype migration, helpers.
+    # ----------------------------------------------------------------------
 
     def _create(
         self,

@@ -45,7 +45,24 @@ def _reset_label_text() -> None:
     _LABEL_TEXT.clear()
 
 
-# 6 vertices per glyph quad (two triangles); 4 floats per vertex (xy + uv).
+# ---------------------------------------------------------------------------
+# Per-glyph vertex layout
+# ---------------------------------------------------------------------------
+#
+# Each glyph is a quad split into two triangles. We emit it as 6 plain
+# triangle vertices (no element-array indices), so the shader sees:
+#
+#     v0 ─── v1          v0 = top-left
+#      │  ╲   │           v1 = top-right
+#      │   ╲  │           v2 = bottom-right
+#      │    ╲ │           v3 = bottom-left
+#     v3 ─── v2          triangle 1 = (v0, v1, v2)
+#                        triangle 2 = (v0, v2, v3)
+#
+# Per vertex we ship 4 floats: screen_x, screen_y, atlas_u, atlas_v.
+# Why 6 vertices and not 4 + an index buffer? Glyphs are independent quads,
+# so a single draw call across N glyphs needs ZERO shared vertices — using
+# an index buffer would save nothing and add upload + bind overhead.
 _FLOATS_PER_VERTEX = 4
 _VERTICES_PER_GLYPH = 6
 _FLOATS_PER_GLYPH = _FLOATS_PER_VERTEX * _VERTICES_PER_GLYPH

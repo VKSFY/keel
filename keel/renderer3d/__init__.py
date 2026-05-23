@@ -213,26 +213,47 @@ class Renderer3D:
             self._point_radius[i] = radius
         return used
 
-    # --- main entry point ------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Main entry point — one full 3D draw pass per visual frame.
+    # ----------------------------------------------------------------------
 
     def render(self, world: Any, viewport_width: int, viewport_height: int) -> None:
-        """One pass: VP, lights, depth-tested mesh draw."""
+        """Render every (Transform3D, MeshRenderer) entity for the current frame.
+
+        Pipeline, in order:
+          1. Resolve the active Camera3D and build view + projection matrices.
+          2. Hand the combined view-projection to the FrustumCuller so the
+             per-mesh draw loop can skip anything fully outside the frustum.
+          3. Clear the framebuffer (unless the 2D renderer already did).
+          4. Enable depth testing, upload per-frame uniforms (lights, ambient,
+             camera position), then walk MeshRenderer entities and issue one
+             draw call per mesh that survives culling.
+          5. Disable depth testing on exit so the 2D / text overlays — which
+             expect no depth — see clean state next frame.
+        """
         if viewport_width <= 0 or viewport_height <= 0:
             return
 
+        # (1) Camera + matrices.
         camera = self._find_camera(world)
         proj = build_projection_matrix(camera, viewport_width, viewport_height)
         view = build_view_matrix(camera)
         vp = proj @ view
+
+        # (2) Frustum extraction for cheap per-mesh culling below.
         self.frustum_culler.update(vp)
 
+        # (3) Clear only if no 2D system has already cleared this frame.
         if not self._has_2d_renderer(world):
             self.ctx.clear(*_BACKGROUND_COLOR)
 
+        # (4) Depth-tested mesh pass.
         self.ctx.enable(moderngl.DEPTH_TEST)
         try:
             self._upload_frame_uniforms(world, camera, view, proj)
             self._draw_meshes(world)
+        # (5) Always restore "no depth test" so the 2D / text overlays
+        # downstream don't accidentally fight the depth buffer.
         finally:
             self.ctx.disable(moderngl.DEPTH_TEST)
 

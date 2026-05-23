@@ -14,7 +14,28 @@ import moderngl
 import numpy as np
 
 
-# Per-instance layout: pos(2) | rot(1) | scale(2) | tint(4) | uv_rect(4) | tex_unit(1) = 14 floats.
+# ---------------------------------------------------------------------------
+# Per-instance vertex buffer layout
+# ---------------------------------------------------------------------------
+#
+# Each sprite contributes ONE row of 14 float32 values to the dynamic
+# instance VBO. The GPU reads it once per instance (not per vertex) and the
+# vertex shader stretches the unit quad accordingly. Field order matters —
+# the shader pulls in_offset / in_rotation / etc. by attribute *order*, not
+# by name.
+#
+#     index   field        contents
+#     ------  -----------  ------------------------------------------------
+#       0,1   in_offset    world position of the sprite center (x, y)
+#       2     in_rotation  rotation in radians (CCW)
+#       3,4   in_scale     full width, height of the sprite in world units
+#       5..8  in_tint      RGBA tint multiplied into the sampled texel
+#       9..12 in_uv_rect   sub-rect inside the atlas: (u0, v0, u1, v1)
+#       13    in_tex_unit  which atlas slot to sample (int, packed as float)
+#
+# INSTANCE_FORMAT spells this out for moderngl. The final "1f/i" makes
+# in_tex_unit an integer-typed attribute on the GPU (declared as
+# `in int in_tex_unit;` in GLSL).
 FLOATS_PER_INSTANCE: int = 14
 INSTANCE_FORMAT: str = "2f 1f 2f 4f 4f 1f/i"
 INSTANCE_ATTRS: tuple[str, ...] = (

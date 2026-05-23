@@ -68,7 +68,10 @@ class Physics3D:
         # by setup_physics_3d.
         self.world: Any = world
 
-    # --- Per-tick API -------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Per-tick API — called by the POST_UPDATE physics_3d_system in this
+    # order: sync_to_physics → step → sync_from_physics → _emit_collisions.
+    # ----------------------------------------------------------------------
 
     def sync_to_physics(self, world: Any) -> None:
         """Build, update, or remove bullet bodies so they mirror current ECS state."""
@@ -196,7 +199,11 @@ class Physics3D:
                 r_ay[i] = ang_vel[1]
                 r_az[i] = ang_vel[2]
 
-    # --- Convenience controls ---------------------------------------------
+    # ----------------------------------------------------------------------
+    # Convenience controls — write into a body from gameplay code. Each one
+    # also mirrors the value back into the ECS so the next sync_to_physics
+    # doesn't undo the write.
+    # ----------------------------------------------------------------------
 
     def apply_impulse(self, entity_id: int, ix: float, iy: float, iz: float) -> None:
         """Add a velocity-change impulse (impulse = mass × Δv) at the body's center."""
@@ -386,7 +393,9 @@ class Physics3D:
             )
         self._collision_buffer.clear()
 
-    # --- Cleanup ----------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Cleanup — called when the owning App shuts down.
+    # ----------------------------------------------------------------------
 
     def disconnect(self) -> None:
         """Close the pybullet client. Idempotent — second call is a no-op."""
@@ -415,7 +424,9 @@ class Physics3D:
         """Underlying pybullet physics client ID — exposed for tests / debug."""
         return self._client
 
-    # --- Internals --------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Internals — body / shape construction, archetype migration, helpers.
+    # ----------------------------------------------------------------------
 
     def _create(
         self,

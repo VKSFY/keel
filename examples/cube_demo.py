@@ -15,34 +15,82 @@ Run with:
 Controls:
     Escape — quit
 """
+
+# ---------------------------------------------------------------------------
+# Imports
+# ---------------------------------------------------------------------------
 import math
 
 import keel
 from keel.renderer3d import Material, make_cube, make_sphere, setup_renderer_3d
 
 
-@keel.component
-class SpinningCube: pass
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+WIDTH = 800
+HEIGHT = 600
+
+# Camera placement (world units). The camera points at the origin.
+CAMERA_X = 3.0
+CAMERA_Y = 3.0
+CAMERA_Z = 5.0
+CAMERA_FOV_DEG = 60.0
+CAMERA_NEAR = 0.1
+CAMERA_FAR = 100.0
+
+# Spin rates for the cube (radians / second).
+CUBE_SPIN_YAW = 0.6
+CUBE_SPIN_PITCH = 0.3
+
+# Lamp orbit — horizontal radius, fixed height, scale of the lamp sphere.
+LAMP_ORBIT_RADIUS = 2.5
+LAMP_HEIGHT = 1.5
+LAMP_SCALE = 0.15
+LAMP_LIGHT_INTENSITY = 3.0
+LAMP_LIGHT_RADIUS = 8.0
+
+# A weak sun to keep the cube's dark side visible.
+SUN_DIR = (-0.4, -0.7, -0.5)
+SUN_INTENSITY = 0.6
+
+
+# ---------------------------------------------------------------------------
+# Custom components (just markers used by the animation systems)
+# ---------------------------------------------------------------------------
 
 @keel.component
-class OrbitingLamp: pass
+class SpinningCube:
+    pass
 
 
-# --- App ----------------------------------------------------------------
+@keel.component
+class OrbitingLamp:
+    pass
 
-app = keel.App(title="Cube Demo", width=800, height=600)
+
+# ---------------------------------------------------------------------------
+# App + renderer setup
+# ---------------------------------------------------------------------------
+
+app = keel.App(title="Cube Demo", width=WIDTH, height=HEIGHT)
 renderer = setup_renderer_3d(app)
 
 mesh_registry = renderer.mesh_registry
 material_registry = renderer.material_registry
 
-# One mesh per primitive shape we use; one material per visual identity.
+# One Mesh per primitive shape we'll draw (the registry uploads vertex /
+# index buffers to the GPU and hands back an integer id).
 cube_mesh = mesh_registry.add(make_cube())
 sphere_mesh = mesh_registry.add(make_sphere(subdivisions=2))
 
+# One Material per visual identity. The cube is matte red-orange; the lamp
+# is a strongly emissive yellow so it visibly glows.
 cube_material = material_registry.add(Material(
     albedo_r=0.85, albedo_g=0.40, albedo_b=0.30,
-    roughness=0.4, metallic=0.0,
+    roughness=0.4,
+    metallic=0.0,
 ))
 lamp_material = material_registry.add(Material(
     albedo_r=1.0, albedo_g=0.9, albedo_b=0.5,
@@ -58,73 +106,100 @@ def _look_at_origin(x: float, y: float, z: float) -> tuple[float, float]:
     return yaw, pitch
 
 
-# Camera at (3, 3, 5) facing the origin.
-cam_yaw, cam_pitch = _look_at_origin(3.0, 3.0, 5.0)
+# ---------------------------------------------------------------------------
+# Initial entities
+# ---------------------------------------------------------------------------
+
+# Camera, aimed at the origin from CAMERA_X/Y/Z.
+cam_yaw, cam_pitch = _look_at_origin(CAMERA_X, CAMERA_Y, CAMERA_Z)
 app.world.spawn(
-    keel.Camera3D(x=3.0, y=3.0, z=5.0, yaw=cam_yaw, pitch=cam_pitch,
-                  fov=math.radians(60.0), near=0.1, far=100.0),
+    keel.Camera3D(
+        x=CAMERA_X,
+        y=CAMERA_Y,
+        z=CAMERA_Z,
+        yaw=cam_yaw,
+        pitch=cam_pitch,
+        fov=math.radians(CAMERA_FOV_DEG),
+        near=CAMERA_NEAR,
+        far=CAMERA_FAR,
+    ),
 )
 
-# The cube at the origin.
+# The cube at the origin. Transform3D has identity defaults so we don't
+# need to set x/y/z explicitly.
 app.world.spawn(
     keel.Transform3D(),
     keel.MeshRenderer(mesh_id=cube_mesh, material_id=cube_material),
     SpinningCube(),
 )
 
-# Emissive sphere acting as the visible "lamp" — Transform3D drives the
-# PointLight, since PointLight has no position field of its own.
+# Emissive sphere acting as the visible "lamp". The PointLight has no
+# position of its own — it reads the entity's Transform3D, so moving the
+# transform also moves the light.
 app.world.spawn(
-    keel.Transform3D(scale_x=0.15, scale_y=0.15, scale_z=0.15),
+    keel.Transform3D(scale_x=LAMP_SCALE, scale_y=LAMP_SCALE, scale_z=LAMP_SCALE),
     keel.MeshRenderer(mesh_id=sphere_mesh, material_id=lamp_material),
-    keel.PointLight(r=1.0, g=0.85, b=0.4, intensity=3.0, radius=8.0),
+    keel.PointLight(
+        r=1.0, g=0.85, b=0.4,
+        intensity=LAMP_LIGHT_INTENSITY,
+        radius=LAMP_LIGHT_RADIUS,
+    ),
     OrbitingLamp(),
 )
 
-# Sun-like directional light. No Transform3D — the direction is in the component.
+# Sun-like directional light. No Transform3D — direction is in the component.
 app.world.spawn(keel.DirectionalLight(
-    dir_x=-0.4, dir_y=-0.7, dir_z=-0.5,
-    r=0.95, g=0.95, b=0.85, intensity=0.6,
+    dir_x=SUN_DIR[0], dir_y=SUN_DIR[1], dir_z=SUN_DIR[2],
+    r=0.95, g=0.95, b=0.85,
+    intensity=SUN_INTENSITY,
 ))
 
 app.world.flush()
 
 
-# --- Animation ----------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Animation state + systems
+# ---------------------------------------------------------------------------
 
-# Module-level clock used by the orbit system; cube spin is per-frame dt only.
+# Module-level clock used by orbit_lamp; the cube's spin only needs `dt`.
 _t = 0.0
 
 
+# Quit when Escape is pressed.
 @app.system(keel.Phase.UPDATE)
 def quit_on_escape(world, dt):
     if app.input.is_key_down(keel.KEY_ESCAPE):
         app.window.close()
 
 
+# Rotate every SpinningCube on its X and Y axes.
 @app.system(keel.Phase.UPDATE)
 def spin_cubes(world, dt):
-    """Rotate every SpinningCube on its X and Y axes."""
     for transforms, _ in world.query(keel.Transform3D, SpinningCube):
         for i in range(len(transforms)):
-            transforms["rot_y"][i] += dt * 0.6
-            transforms["rot_x"][i] += dt * 0.3
+            transforms["rot_y"][i] += dt * CUBE_SPIN_YAW
+            transforms["rot_x"][i] += dt * CUBE_SPIN_PITCH
 
 
+# Move every OrbitingLamp around the Y axis at LAMP_ORBIT_RADIUS / LAMP_HEIGHT.
+# Writing into Transform3D in place also moves the co-located PointLight.
 @app.system(keel.Phase.UPDATE)
 def orbit_lamp(world, dt):
-    """Move every OrbitingLamp around the Y axis at a fixed radius and height.
-    Writing into Transform3D in place also moves the co-located PointLight."""
     global _t
     _t += dt
-    cx = math.cos(_t) * 2.5
-    cz = math.sin(_t) * 2.5
+    cx = math.cos(_t) * LAMP_ORBIT_RADIUS
+    cz = math.sin(_t) * LAMP_ORBIT_RADIUS
+
     for transforms, _ in world.query(keel.Transform3D, OrbitingLamp):
         for i in range(len(transforms)):
             transforms["x"][i] = cx
-            transforms["y"][i] = 1.5
+            transforms["y"][i] = LAMP_HEIGHT
             transforms["z"][i] = cz
 
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 print("[cube] spinning cube + orbiting lamp; Escape to quit")
 app.run()
