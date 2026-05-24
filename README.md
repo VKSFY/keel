@@ -408,6 +408,8 @@ The single most common Keel bug is "my collision callback never fires." Almost a
 - `keel.BodyType.STATIC` for immovable geometry: walls, floors, fixed platforms, level boundaries.
 - `keel.BodyType.KINEMATIC` for entities that you move manually frame-to-frame (the player's paddle, a moving platform driven by gameplay code, the player character if you handle movement yourself). Kinematic bodies push dynamic bodies aside on contact but **do not** emit `CollisionEvent2D` against other kinematic or static bodies. If two kinematic bodies must detect each other, change at least one to DYNAMIC.
 
+Kinematic-vs-Static also has no collision events. A `KINEMATIC` player body touching a `STATIC` floor will not emit `CollisionEvent2D`, so ground detection from events does not work in that setup. Use `DYNAMIC` for the player and let pymunk handle gravity, or poll the player's position manually each frame. Keel emits a one-time `UserWarning` the first time a K/K or K/S pair is created so the trap is visible before it bites.
+
 A typical Pong-style setup:
 
 ```python
@@ -578,7 +580,14 @@ mygame/
 
 ### `CollisionEvent2D` never fires
 
-Two kinematic bodies do not generate collision events in pymunk. Change at least one body to `keel.BodyType.DYNAMIC`. See "Choosing body types for games" under Features → Physics for the full guide.
+`CollisionEvent2D` only fires when at least one body is `DYNAMIC`. Quick reference:
+
+- KINEMATIC vs KINEMATIC: no events
+- KINEMATIC vs STATIC: no events
+- STATIC vs STATIC: no events
+- DYNAMIC vs anything (including sensors): events fire
+
+Use `keel.BodyType.DYNAMIC` for bullets, balls, players, enemies, or anything that needs to detect collisions. Sensors (`Collider2D(..., sensor=True)`) emit `CollisionEvent2D` on the frame the contact begins; the dynamic body still passes through them. See "Choosing body types for games" under Features → Physics for the full guide.
 
 ### Score or game state not updating
 

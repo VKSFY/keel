@@ -1050,3 +1050,208 @@ def test_physics2d_elasticity_bounces_dynamic_off_static():
     phys.cleanup()
 
 
+# ---------------------------------------------------------------------------
+# Sensor CollisionEvent2D emission (v0.8.3 Fix 1)
+# ---------------------------------------------------------------------------
+#
+# pymunk skips the solve phase for sensor shapes, so post_solve never fires
+# for them. Physics2D registers a begin handler for sensor pairs so
+# CollisionEvent2D still fires on first contact — the bug the platformer
+# example tripped over.
+
+def test_sensor_shape_emits_collision_event():
+    """A DYNAMIC body entering a STATIC sensor must emit CollisionEvent2D."""
+    world = World()
+    phys = Physics2D(gravity_x=0.0, gravity_y=0.0, world=world)
+    sensor = world.spawn(
+        Transform2D(),
+        RigidBody2D(body_type=B2_STATIC),
+        Collider2D(shape_type=S2_BOX, width=50.0, height=50.0, sensor=True),
+    )
+    ball = world.spawn(
+        Transform2D(x=-100.0, y=0.0),
+        RigidBody2D(mass=1.0, vel_x=200.0),
+        Collider2D(shape_type=S2_CIRCLE, radius=5.0),
+    )
+    world.flush()
+    phys.sync_to_physics(world)
+    for _ in range(120):
+        phys.step(1.0 / 60.0)
+    phys._emit_collisions(world)
+    events = list(world.read_events(CollisionEvent2D))
+    pair = {ball, sensor}
+    assert any({e.entity_a, e.entity_b} == pair for e in events), (
+        f"expected CollisionEvent2D for ball/sensor pair, got {events}"
+    )
+    phys.cleanup()
+
+
+def test_sensor_contact_does_not_block_movement():
+    """Sensor still lets the dynamic body pass through; it's a trigger, not a wall."""
+    world = World()
+    phys = Physics2D(gravity_x=0.0, gravity_y=0.0, world=world)
+    world.spawn(
+        Transform2D(),
+        RigidBody2D(body_type=B2_STATIC),
+        Collider2D(shape_type=S2_BOX, width=20.0, height=20.0, sensor=True),
+    )
+    ball = world.spawn(
+        Transform2D(x=-100.0, y=0.0),
+        RigidBody2D(mass=1.0, vel_x=200.0),
+        Collider2D(shape_type=S2_CIRCLE, radius=5.0),
+    )
+    world.flush()
+    phys.sync_to_physics(world)
+    for _ in range(120):
+        phys.step(1.0 / 60.0)
+    phys.sync_from_physics(world)
+    ball_t = world.get_component(ball, Transform2D)
+    assert ball_t.x > 50.0, f"sensor blocked the ball: x={ball_t.x}"
+    phys.cleanup()
+
+
+def test_non_sensor_contact_still_emits_event():
+    """Regression: existing DYNAMIC-vs-STATIC (non-sensor) collision still fires."""
+    world = World()
+    phys = Physics2D(gravity_x=0.0, gravity_y=0.0, world=world)
+    floor = world.spawn(
+        Transform2D(y=-20.0),
+        RigidBody2D(body_type=B2_STATIC),
+        Collider2D(shape_type=S2_BOX, width=100.0, height=10.0),
+    )
+    ball = world.spawn(
+        Transform2D(x=0.0, y=20.0),
+        RigidBody2D(mass=1.0, vel_y=-200.0),
+        Collider2D(shape_type=S2_CIRCLE, radius=5.0, elasticity=1.0),
+    )
+    world.flush()
+    phys.sync_to_physics(world)
+    for _ in range(120):
+        phys.step(1.0 / 60.0)
+    phys._emit_collisions(world)
+    events = list(world.read_events(CollisionEvent2D))
+    pair = {ball, floor}
+    assert any({e.entity_a, e.entity_b} == pair for e in events), (
+        f"non-sensor contact regression — no event for ball/floor: {events}"
+    )
+    # And a non-sensor event must carry a real (non-zero) impulse, unlike
+    # sensor placeholders that get 0.0 impulse.
+    real_hits = [
+        e for e in events
+        if {e.entity_a, e.entity_b} == pair and e.impulse > 0.0
+    ]
+    assert real_hits, f"non-sensor event lost its impulse data: {events}"
+    phys.cleanup()
+
+
+def test_sensor_event_not_duplicated_across_frames():
+    """Sensor begin fires once per overlap session, not every frame in contact."""
+    world = World()
+    phys = Physics2D(gravity_x=0.0, gravity_y=0.0, world=world)
+    sensor = world.spawn(
+        Transform2D(),
+        RigidBody2D(body_type=B2_STATIC),
+        Collider2D(shape_type=S2_BOX, width=100.0, height=100.0, sensor=True),
+    )
+    # Ball spawned already overlapping the sensor; it just sits there.
+    ball = world.spawn(
+        Transform2D(x=0.0, y=0.0),
+        RigidBody2D(mass=1.0),
+        Collider2D(shape_type=S2_CIRCLE, radius=5.0),
+    )
+    world.flush()
+    phys.sync_to_physics(world)
+    for _ in range(5):
+        phys.step(1.0 / 60.0)
+    phys._emit_collisions(world)
+    pair = {ball, sensor}
+    events = [
+        e for e in world.read_events(CollisionEvent2D)
+        if {e.entity_a, e.entity_b} == pair
+    ]
+    assert len(events) == 1, (
+        f"sensor event duplicated across frames: got {len(events)} events"
+    )
+    phys.cleanup()
+
+
+# ---------------------------------------------------------------------------
+# Kinematic-vs-Static warning (v0.8.3 Fix 2)
+# ---------------------------------------------------------------------------
+#
+# pymunk doesn't fire collision callbacks for KINEMATIC-vs-STATIC pairs
+# either (same root cause as KINEMATIC-vs-KINEMATIC). The bridge now warns
+# once when it sees such a pairing form.
+
+def test_kinematic_vs_static_warns():
+    """Adding KINEMATIC after STATIC raises the K-vs-S/K UserWarning."""
+    world = World()
+    phys = Physics2D(world=world)
+    world.spawn(
+        Transform2D(),
+        RigidBody2D(body_type=B2_STATIC),
+        Collider2D(shape_type=S2_BOX, width=1.0, height=1.0),
+    )
+    world.spawn(
+        Transform2D(x=10.0),
+        RigidBody2D(body_type=B2_KINEMATIC),
+        Collider2D(shape_type=S2_BOX, width=1.0, height=1.0),
+    )
+    world.flush()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        phys.sync_to_physics(world)
+    msgs = [str(w.message) for w in caught if issubclass(w.category, UserWarning)]
+    assert any("KINEMATIC" in m and "STATIC" in m for m in msgs), msgs
+    phys.cleanup()
+
+
+def test_static_vs_kinematic_warns():
+    """And the reverse order: KINEMATIC first then STATIC also warns."""
+    world = World()
+    phys = Physics2D(world=world)
+    world.spawn(
+        Transform2D(),
+        RigidBody2D(body_type=B2_KINEMATIC),
+        Collider2D(shape_type=S2_BOX, width=1.0, height=1.0),
+    )
+    world.spawn(
+        Transform2D(x=10.0),
+        RigidBody2D(body_type=B2_STATIC),
+        Collider2D(shape_type=S2_BOX, width=1.0, height=1.0),
+    )
+    world.flush()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        phys.sync_to_physics(world)
+    msgs = [str(w.message) for w in caught if issubclass(w.category, UserWarning)]
+    assert any("KINEMATIC" in m and "STATIC" in m for m in msgs), msgs
+    phys.cleanup()
+
+
+def test_kinematic_vs_static_no_collision_event():
+    """K-vs-S pairing still emits no CollisionEvent2D (pymunk behaviour)."""
+    world = World()
+    phys = Physics2D(gravity_x=0.0, gravity_y=0.0, world=world)
+    world.spawn(
+        Transform2D(),
+        RigidBody2D(body_type=B2_KINEMATIC),
+        Collider2D(shape_type=S2_BOX, width=20.0, height=20.0),
+    )
+    world.spawn(
+        Transform2D(x=0.0, y=0.0),
+        RigidBody2D(body_type=B2_STATIC),
+        Collider2D(shape_type=S2_BOX, width=20.0, height=20.0),
+    )
+    world.flush()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # the new UserWarning is expected here
+        phys.sync_to_physics(world)
+    for _ in range(60):
+        phys.step(1.0 / 60.0)
+    phys._emit_collisions(world)
+    events = list(world.read_events(CollisionEvent2D))
+    assert events == [], f"K-vs-S should not emit events: {events}"
+    phys.cleanup()
+
+

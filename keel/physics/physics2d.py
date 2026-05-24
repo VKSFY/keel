@@ -70,13 +70,42 @@ class Physics2D:
         self._setup_collision_handler()
 
     # ----------------------------------------------------------------------
-    # Collision handler — pymunk's post_solve callback appends contact info
-    # to a tiny buffer; the main thread drains it in _emit_collisions().
+    # Collision handler — pymunk fires two callbacks we care about:
+    #   begin(arbiter, space, data) -> bool : called ONCE when two shapes
+    #       first start touching. Fires for sensors too. Returning True
+    #       lets the contact proceed; returning False would cancel it.
+    #   post_solve(arbiter, ...)            : called every step the contact
+    #       persists, ONLY for non-sensor pairs (sensors skip the solver,
+    #       so post_solve never fires for them). Carries impulse + normal.
+    #
+    # Both callbacks append to _collision_buffer; the main thread drains it
+    # in _emit_collisions(). The split lets non-sensor contacts ship real
+    # impulse / normal data while sensor pickups still emit a CollisionEvent2D
+    # (the bug platformers tripped over before — sensors were silent).
     # ----------------------------------------------------------------------
 
     def _setup_collision_handler(self) -> None:
-        """Register a single default-pair handler. Pymunk 7's on_collision API."""
+        """Register pymunk 7 begin + post_solve handlers. See class banner above."""
         buffer = self._collision_buffer
+
+        def _on_begin(arbiter: pymunk.Arbiter, space: pymunk.Space, data: Any) -> bool:
+            shapes = arbiter.shapes
+            if len(shapes) < 2:
+                return True
+            # Non-sensor pairs get their event from post_solve, where we have
+            # impulse + normal data. Begin only handles sensors here.
+            if not (shapes[0].sensor or shapes[1].sensor):
+                return True
+            eid_a = _shape_entity_id(shapes[0])
+            eid_b = _shape_entity_id(shapes[1])
+            if eid_a == 0 or eid_b == 0:
+                return True
+            # Sensor contacts give no useful impulse / normal; emit zeros so
+            # _emit_collisions can unpack a uniform 5-tuple either way.
+            buffer.append((eid_a, eid_b, 0.0, 0.0, 0.0))
+            # Returning True lets pymunk run the (empty) sensor solve so that
+            # separate() still fires; returning False would suppress it.
+            return True
 
         def _post_solve(arbiter: pymunk.Arbiter, space: pymunk.Space, data: Any) -> None:
             shapes = arbiter.shapes
@@ -86,8 +115,9 @@ class Physics2D:
             eid_b = _shape_entity_id(shapes[1])
             if eid_a == 0 or eid_b == 0:
                 return
-            # Drop sensor-vs-sensor pairs entirely.
-            if shapes[0].sensor and shapes[1].sensor:
+            # Defensive: pymunk never calls post_solve for sensor pairs in
+            # practice, but bail anyway so a future pymunk doesn't surprise us.
+            if shapes[0].sensor or shapes[1].sensor:
                 return
             try:
                 normal = arbiter.normal
@@ -102,7 +132,7 @@ class Physics2D:
             buffer.append((eid_a, eid_b, nx, ny, impulse_mag))
 
         # collision_type_a/b = None => default handler that fires for every pair.
-        self._space.on_collision(post_solve=_post_solve)
+        self._space.on_collision(begin=_on_begin, post_solve=_post_solve)
 
     # ----------------------------------------------------------------------
     # Per-tick API — called by the POST_UPDATE physics_2d_system in this
@@ -355,18 +385,29 @@ class Physics2D:
         self._bodies[eid] = body
         self._shapes[eid] = shape
         self._body_types[eid] = bt
-        if bt == BODY_TYPE_KINEMATIC and not self._warned_kinematic_pair:
-            n_kin = sum(1 for t in self._body_types.values() if t == BODY_TYPE_KINEMATIC)
-            if n_kin > 1:
+        # pymunk doesn't emit collision callbacks for KINEMATIC-vs-KINEMATIC
+        # OR KINEMATIC-vs-STATIC pairs. Surface a one-time UserWarning when
+        # this entity creates such a pairing with any existing body, so the
+        # silent-failure trap is visible before it bites in gameplay code.
+        if not self._warned_kinematic_pair:
+            others = [t for e, t in self._body_types.items() if e != eid]
+            offender = (
+                (bt == BODY_TYPE_KINEMATIC and any(
+                    t in (BODY_TYPE_KINEMATIC, BODY_TYPE_STATIC) for t in others))
+                or
+                (bt == BODY_TYPE_STATIC and any(
+                    t == BODY_TYPE_KINEMATIC for t in others))
+            )
+            if offender:
                 self._warned_kinematic_pair = True
                 warnings.warn(
-                    "Two or more KINEMATIC bodies in Physics2D: pymunk does "
-                    "not emit CollisionEvent2D for kinematic-vs-kinematic "
-                    "pairs (this is a pymunk limitation, not a Keel bug). "
-                    "Fix: change one body to keel.BodyType.DYNAMIC so the "
-                    "collision callback fires. See the 'Choosing body types "
-                    "for games' section in the Keel README for the full "
-                    "guide.",
+                    f"Physics2D: entity {eid} created a KINEMATIC/STATIC or "
+                    "KINEMATIC/KINEMATIC body pair. pymunk does NOT emit "
+                    "CollisionEvent2D for these pairs (it's a pymunk "
+                    "limitation, not a Keel bug). Fix: change one body to "
+                    "keel.BodyType.DYNAMIC so the collision callback fires. "
+                    "See the 'Choosing body types for games' section in the "
+                    "Keel README for the full guide.",
                     UserWarning,
                     stacklevel=2,
                 )
