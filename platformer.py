@@ -1,4 +1,4 @@
-"""Platformer demo: tilemap + physics + camera follow + text + sensor polling.
+"""Platformer demo: tilemap + physics + camera follow + text + sensor events.
 
 Controls: A/D or arrows = move, Space = jump (on ground only), R = restart,
 Esc = quit. Collect every yellow coin to win; touching a red enemy or red
@@ -282,40 +282,31 @@ def collision_system(world, dt):
     if player_pos is None:
         return
 
+    # Coins and spikes use sensor=True so they don't block the player
+    # physically. CollisionEvent2D still fires on contact begin, which is
+    # how we detect collection and death without blocking movement.
     coins_collected, coins_total, dead = gs["coins_collected"], gs["coins_total"], gs["dead"]
     on_ground = False
-    px, py = float(player_pos["x"]), float(player_pos["y"])
+    py = float(player_pos["y"])
 
-    # Event-driven: enemy hits + ground contact (DYNAMIC pairs fire post_solve).
     for event in world.read_events(keel.CollisionEvent2D):
         a, b = int(event.entity_a), int(event.entity_b)
         if PLAYER_ENTITY not in (a, b):
             continue
         other = b if a == PLAYER_ENTITY else a
-        if other in ENEMY_ENTITIES:
+
+        if other in COIN_ENTITIES:
+            if not dead:
+                COIN_ENTITIES.discard(other)
+                if other not in DESPAWN_QUEUE:
+                    DESPAWN_QUEUE.append(other)
+                coins_collected += 1
+        elif other in SPIKE_ENTITIES or other in ENEMY_ENTITIES:
             dead = True
         else:
             other_pos = world.get(other, keel.Transform2D)
             if other_pos is not None and py > float(other_pos["y"]):
                 on_ground = True
-
-    # Sensors skip pymunk's solver, so post_solve never fires — poll AABB.
-    if not dead:
-        for eid in list(COIN_ENTITIES):
-            cp = world.get(eid, keel.Transform2D)
-            if cp is not None and _aabb(px, py, PLAYER_W, PLAYER_H,
-                                         float(cp["x"]), float(cp["y"]), 20.0, 20.0):
-                COIN_ENTITIES.discard(eid)
-                if eid not in DESPAWN_QUEUE:
-                    DESPAWN_QUEUE.append(eid)
-                coins_collected += 1
-        for eid in SPIKE_ENTITIES:
-            sp = world.get(eid, keel.Transform2D)
-            if sp is not None and _aabb(px, py, PLAYER_W, PLAYER_H,
-                                         float(sp["x"]), float(sp["y"]),
-                                         float(TILE_SIZE), float(TILE_SIZE)):
-                dead = True
-                break
 
     won = coins_total > 0 and coins_collected >= coins_total
     world.set(GS_ENTITY, GameState,
@@ -372,13 +363,7 @@ def quit_system(world, dt):
         app.window.close()
 
 
-# === Restart + despawn helpers ===
-
-def _aabb(ax: float, ay: float, aw: float, ah: float,
-          bx: float, by: float, bw: float, bh: float) -> bool:
-    """Center-based AABB overlap test."""
-    return abs(ax - bx) < (aw + bw) * 0.5 and abs(ay - by) < (ah + bh) * 0.5
-
+# === Restart helper ===
 
 def _restart() -> None:
     """Tear down player + enemies + coins; respawn the lot; reset GameState."""
