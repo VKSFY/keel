@@ -200,14 +200,6 @@ def wrap(x, y):
     return x, y
 
 
-def _gs(world):
-    """Return the singleton GameState column-view, or None on the bootstrap frame."""
-    for (g,) in world.query(GameState):
-        if len(g) > 0:
-            return g
-    return None
-
-
 # ---------------------------------------------------------------------------
 # Spawn functions
 # ---------------------------------------------------------------------------
@@ -315,7 +307,8 @@ def spawn_wave(world, phys, wave):
 # Initial entities (run at module import time, before app.run())
 # ---------------------------------------------------------------------------
 
-app.world.spawn(GameState())
+GS_ENTITY = app.world.spawn(GameState())
+app.world.flush()
 
 # Transform2D.y for a TextLabel is the BASELINE of the glyph row, so labels
 # need to sit at least ~ascender pixels (about 25 px at size 28) below the
@@ -358,16 +351,16 @@ def input_system(world, dt):
     if app.input.is_key_down(keel.KEY_ESCAPE):
         app.window.close()
 
-    g = _gs(world)
-    if g is None:
+    gs = world.query_one(GameState)
+    if gs is None:
         return
 
-    if g["game_over"][0]:
+    if gs["game_over"]:
         if app.input.is_key_down(keel.KEY_R):
-            g["restart_pending"][0] = True
+            world.set(GS_ENTITY, GameState, restart_pending=True)
         return
 
-    if not g["ship_alive"][0]:
+    if not gs["ship_alive"]:
         return
 
     for ts, ships in world.query(keel.Transform2D, Ship):
@@ -484,39 +477,39 @@ def bullet_lifetime(world, dt):
 # flip game_over and show the end-screen labels.
 @app.system(keel.Phase.UPDATE)
 def respawn_system(world, dt):
-    g = _gs(world)
-    if g is None or g["game_over"][0] or g["restart_pending"][0]:
+    gs = world.query_one(GameState)
+    if gs is None or gs["game_over"] or gs["restart_pending"]:
         return
-    if g["ship_alive"][0]:
+    if gs["ship_alive"]:
         return
 
-    remaining = g["respawn_timer"][0] - dt
+    remaining = gs["respawn_timer"] - dt
     if remaining > 0.0:
-        g["respawn_timer"][0] = remaining
+        world.set(GS_ENTITY, GameState, respawn_timer=remaining)
         return
 
-    if g["lives"][0] <= 0:
-        g["game_over"][0] = True
+    if gs["lives"] <= 0:
+        world.set(GS_ENTITY, GameState, game_over=True)
         set_label_visible(world, GAMEOVER_LABEL, True)
         set_label_visible(world, RESTART_LABEL, True)
         return
 
     spawn_ship(world, phys)
-    g["ship_alive"][0] = True
-    g["respawn_timer"][0] = 0.0
+    world.set(GS_ENTITY, GameState, ship_alive=True, respawn_timer=0.0)
 
 
 # When every asteroid is gone, bump the wave counter and spawn the next set.
 @app.system(keel.Phase.UPDATE)
 def wave_system(world, dt):
-    g = _gs(world)
-    if g is None or g["game_over"][0] or g["restart_pending"][0]:
+    gs = world.query_one(GameState)
+    if gs is None or gs["game_over"] or gs["restart_pending"]:
         return
     if len(ASTEROID_ENTITIES) > 0:
         return
 
-    g["wave"][0] += 1
-    spawn_wave(world, phys, int(g["wave"][0]))
+    next_wave = gs["wave"] + 1
+    world.set(GS_ENTITY, GameState, wave=next_wave)
+    spawn_wave(world, phys, next_wave)
 
 
 # Decay each ship's invincibility timer + blink the sprite alpha while > 0.
@@ -537,8 +530,7 @@ def invincibility_system(world, dt):
 # Drain CollisionEvent2D and route bullet-vs-asteroid + ship-vs-asteroid hits.
 @app.system(keel.Phase.POST_UPDATE)
 def collision_system(world, dt):
-    g = _gs(world)
-    if g is None:
+    if world.query_one(GameState) is None:
         return
 
     for event in world.read_events(keel.CollisionEvent2D):
@@ -548,13 +540,13 @@ def collision_system(world, dt):
             continue
 
         if a in BULLET_ENTITIES and b in ASTEROID_ENTITIES:
-            _hit_asteroid(world, g, a, b)
+            _hit_asteroid(world, a, b)
         elif b in BULLET_ENTITIES and a in ASTEROID_ENTITIES:
-            _hit_asteroid(world, g, b, a)
+            _hit_asteroid(world, b, a)
         elif a in SHIP_ENTITIES and b in ASTEROID_ENTITIES:
-            _ship_hit(world, g, a)
+            _ship_hit(world, a)
         elif b in SHIP_ENTITIES and a in ASTEROID_ENTITIES:
-            _ship_hit(world, g, b)
+            _ship_hit(world, b)
 
 
 # Apply every queued despawn and clean up the tracking sets / dicts.
@@ -575,14 +567,14 @@ def despawn_system(world, dt):
 # Update the score / lives label strings; trigger restart if R was pressed.
 @app.system(keel.Phase.POST_UPDATE)
 def text_update(world, dt):
-    g = _gs(world)
-    if g is None:
+    gs = world.query_one(GameState)
+    if gs is None:
         return
 
-    set_text(SCORE_LABEL, f"Score: {int(g['score'][0])}")
-    set_text(LIVES_LABEL, f"Lives: {int(g['lives'][0])}")
+    set_text(SCORE_LABEL, f"Score: {gs['score']}")
+    set_text(LIVES_LABEL, f"Lives: {gs['lives']}")
 
-    if g["restart_pending"][0]:
+    if gs["restart_pending"]:
         restart_game(world, phys)
 
 
@@ -590,7 +582,7 @@ def text_update(world, dt):
 # Collision + restart helpers
 # ---------------------------------------------------------------------------
 
-def _hit_asteroid(world, g, bullet_eid, ast_eid):
+def _hit_asteroid(world, bullet_eid, ast_eid):
     """A bullet hit an asteroid: award points, queue despawns, and split if large."""
     if bullet_eid in DESPAWN_QUEUE or ast_eid in DESPAWN_QUEUE:
         return
@@ -601,8 +593,11 @@ def _hit_asteroid(world, g, bullet_eid, ast_eid):
         return
 
     size = int(info.size)
-    g["score"][0] += ASTEROID_SCORE[size]
-    print(f"score {int(g['score'][0])}  (asteroid size={size})")
+    gs = world.query_one(GameState)
+    if gs is not None:
+        new_score = gs["score"] + ASTEROID_SCORE[size]
+        world.set(GS_ENTITY, GameState, score=new_score)
+        print(f"score {new_score}  (asteroid size={size})")
 
     queue_despawn(bullet_eid)
     queue_despawn(ast_eid)
@@ -625,16 +620,22 @@ def _hit_asteroid(world, g, bullet_eid, ast_eid):
             )
 
 
-def _ship_hit(world, g, ship_eid):
+def _ship_hit(world, ship_eid):
     """An asteroid hit the ship: cost a life unless invincibility is active."""
     ship = world.get_component(ship_eid, Ship)
     if ship is None or ship.invincible_timer > 0.0:
         return
 
     queue_despawn(ship_eid)
-    g["lives"][0] -= 1
-    g["ship_alive"][0] = False
-    g["respawn_timer"][0] = RESPAWN_DELAY
+    gs = world.query_one(GameState)
+    if gs is not None:
+        world.set(
+            GS_ENTITY,
+            GameState,
+            lives=gs["lives"] - 1,
+            ship_alive=False,
+            respawn_timer=RESPAWN_DELAY,
+        )
     SHIP_VEL["x"] = 0.0
     SHIP_VEL["y"] = 0.0
 
@@ -656,15 +657,17 @@ def restart_game(world, phys):
     SHIP_VEL["y"] = 0.0
 
     # Reset the singleton GameState.
-    g = _gs(world)
-    if g is not None:
-        g["score"][0] = 0
-        g["lives"][0] = 3
-        g["wave"][0] = 1
-        g["game_over"][0] = False
-        g["ship_alive"][0] = True
-        g["respawn_timer"][0] = 0.0
-        g["restart_pending"][0] = False
+    world.set(
+        GS_ENTITY,
+        GameState,
+        score=0,
+        lives=3,
+        wave=1,
+        game_over=False,
+        ship_alive=True,
+        respawn_timer=0.0,
+        restart_pending=False,
+    )
 
     set_label_visible(world, GAMEOVER_LABEL, False)
     set_label_visible(world, RESTART_LABEL, False)

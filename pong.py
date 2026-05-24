@@ -272,56 +272,49 @@ def ball_out_of_bounds_system(world, dt):
     if ball_t is None:
         return
 
-    for arch in world.query(GameState, LeftScore, RightScore).archetypes():
-        n = arch.length
-        gs = arch.columns[GameState][:n]
-        ls = arch.columns[LeftScore][:n]
-        rs = arch.columns[RightScore][:n]
+    gs = world.query_one(GameState)
+    if gs is None or gs["reset_timer"] > 0.0:
+        return
 
-        for i in range(n):
-            if float(gs["reset_timer"][i]) > 0.0:
-                continue
+    scored_right = ball_t.x < 0.0
+    scored_left = ball_t.x > WIDTH
+    if not (scored_right or scored_left):
+        return
 
-            scored = False
-            if ball_t.x < 0.0:
-                rs["value"][i] = int(rs["value"][i]) + 1
-                scored = True
-            elif ball_t.x > WIDTH:
-                ls["value"][i] = int(ls["value"][i]) + 1
-                scored = True
+    ls = world.query_one(LeftScore) or {"value": 0}
+    rs = world.query_one(RightScore) or {"value": 0}
+    left = ls["value"]
+    right = rs["value"]
+    if scored_right:
+        right += 1
+        world.set(ENTITIES["game"], RightScore, value=right)
+    else:
+        left += 1
+        world.set(ENTITIES["game"], LeftScore, value=left)
 
-            if scored:
-                gs["reset_timer"][i] = RESET_DELAY
-                BALL_STATE["frozen"] = True
-                phys.set_velocity(ENTITIES["ball"], 0.0, 0.0)
-                print(
-                    f"[Pong] Left: {int(ls['value'][i])}  "
-                    f"Right: {int(rs['value'][i])}"
-                )
+    world.set(ENTITIES["game"], GameState, reset_timer=RESET_DELAY)
+    BALL_STATE["frozen"] = True
+    phys.set_velocity(ENTITIES["ball"], 0.0, 0.0)
+    print(f"[Pong] Left: {left}  Right: {right}")
 
 
 # Count down the post-score pause; when it hits 0, relaunch the ball.
 @app.system(keel.Phase.UPDATE)
 def reset_timer_system(world, dt):
-    for arch in world.query(GameState).archetypes():
-        n = arch.length
-        gs = arch.columns[GameState][:n]
+    gs = world.query_one(GameState)
+    if gs is None or gs["reset_timer"] <= 0.0:
+        return
 
-        for i in range(n):
-            t = float(gs["reset_timer"][i])
-            if t <= 0.0:
-                continue
+    new_t = max(0.0, gs["reset_timer"] - dt)
+    world.set(ENTITIES["game"], GameState, reset_timer=new_t)
 
-            new_t = max(0.0, t - dt)
-            gs["reset_timer"][i] = new_t
-
-            if new_t == 0.0:
-                vx, vy = make_random_launch()
-                BALL_STATE["multiplier"] = 1.0
-                BALL_STATE["frozen"] = False
-                BALL_STATE["last_hit"] = 0
-                phys.set_position(ENTITIES["ball"], SCREEN_CX, SCREEN_CY)
-                phys.set_velocity(ENTITIES["ball"], vx, vy)
+    if new_t == 0.0:
+        vx, vy = make_random_launch()
+        BALL_STATE["multiplier"] = 1.0
+        BALL_STATE["frozen"] = False
+        BALL_STATE["last_hit"] = 0
+        phys.set_position(ENTITIES["ball"], SCREEN_CX, SCREEN_CY)
+        phys.set_velocity(ENTITIES["ball"], vx, vy)
 
 
 # Layer Pong gameplay on top of pymunk's natural bounce: deflect by hit y
@@ -399,27 +392,26 @@ def collision_system(world, dt):
 # Detect WIN_SCORE — announce the winner, reset scores, freeze for one round.
 @app.system(keel.Phase.UPDATE)
 def win_check_system(world, dt):
-    for arch in world.query(GameState, LeftScore, RightScore).archetypes():
-        n = arch.length
-        gs = arch.columns[GameState][:n]
-        ls = arch.columns[LeftScore][:n]
-        rs = arch.columns[RightScore][:n]
+    ls = world.query_one(LeftScore)
+    rs = world.query_one(RightScore)
+    if ls is None or rs is None:
+        return
+    left, right = ls["value"], rs["value"]
+    if left < WIN_SCORE and right < WIN_SCORE:
+        return
 
-        for i in range(n):
-            left = int(ls["value"][i])
-            right = int(rs["value"][i])
-            if left < WIN_SCORE and right < WIN_SCORE:
-                continue
-
-            print("[Pong] Left wins!" if left >= WIN_SCORE else "[Pong] Right wins!")
-            ls["value"][i] = 0
-            rs["value"][i] = 0
-            gs["winner"][i] = 1 if left >= WIN_SCORE else 2
-            gs["reset_timer"][i] = RESET_DELAY
-
-            BALL_STATE["frozen"] = True
-            BALL_STATE["last_hit"] = 0
-            phys.set_velocity(ENTITIES["ball"], 0.0, 0.0)
+    print("[Pong] Left wins!" if left >= WIN_SCORE else "[Pong] Right wins!")
+    world.set(ENTITIES["game"], LeftScore, value=0)
+    world.set(ENTITIES["game"], RightScore, value=0)
+    world.set(
+        ENTITIES["game"],
+        GameState,
+        winner=1 if left >= WIN_SCORE else 2,
+        reset_timer=RESET_DELAY,
+    )
+    BALL_STATE["frozen"] = True
+    BALL_STATE["last_hit"] = 0
+    phys.set_velocity(ENTITIES["ball"], 0.0, 0.0)
 
 
 # ---------------------------------------------------------------------------
