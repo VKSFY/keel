@@ -245,6 +245,40 @@ class World:
         """Build a query over component types and Without[]/Optional[] markers."""
         return build_query(self, args)
 
+    def query_one(self, component_type: type) -> dict[str, Any] | None:
+        """Return the first entity's component fields as plain Python scalars.
+
+        For singleton components (GameState, Camera2D, one-of-a-kind config
+        rows). Returns a plain Python dict with Python scalars instead of the
+        numpy array views you get from `world.query()`, so reading a field
+        does not require `[0]` indexing and works with `int()` / `bool()` /
+        comparison operators directly.
+
+            gs = world.query_one(GameState)
+            if gs is not None:
+                print(gs["score"])  # plain int, not numpy.int64
+
+        This is read-only: mutating the returned dict does **not** write back
+        to the ECS. To write fields, use `world.set(entity_id, GameState, ...)`
+        or iterate with `world.query(GameState)` and mutate the views in place.
+        Returns None if no entity has the component.
+        """
+        for arch in self.archetypes.archetypes_with(component_type):
+            if arch.length == 0:
+                continue
+            col = arch.columns[component_type]
+            if isinstance(col, np.ndarray):
+                rec = col[0]
+                out: dict[str, Any] = {}
+                for name in rec.dtype.names:
+                    v = rec[name]
+                    out[name] = v.item() if isinstance(v, np.generic) else v
+                return out
+            meta = get_component_meta(component_type)
+            inst = col[0]
+            return {name: getattr(inst, name) for name in meta.field_names}
+        return None
+
     # ----------------------------------------------------------------------
     # Resources — singleton objects keyed by their type, injected into
     # systems via parameter type annotations.

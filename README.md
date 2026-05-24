@@ -175,6 +175,20 @@ world.set(player, keel.Transform2D, x=100.0, y=200.0)
 world.set(label, keel.TextLabel, visible=False)
 ```
 
+### Singleton components
+
+For components with exactly one instance in the world (`GameState`, `Camera2D`, level config), use `world.query_one`. It returns a plain Python dict with scalar values, so reading fields does not need `[0]` indexing or `int()` casts:
+
+```python
+gs = world.query_one(GameState)
+if gs is not None:
+    print(gs['score'])         # plain int, not numpy.int64
+    if gs['game_over']:        # plain bool, works in `if`
+        ...
+```
+
+`query_one` is read-only. The returned dict is a snapshot; mutating it does not write back to the ECS. To write fields, use `world.set(entity_id, GameState, score=42)` or iterate the raw `world.query(GameState)` for bulk in-place mutations.
+
 ### Deferred structural changes
 
 Structural changes are deferred. Calling `world.spawn`, `world.despawn`, `world.add_component`, or `world.remove_component` queues a command in the buffer. Nothing moves between archetypes until `world.flush()` runs, which the main loop calls at the end of every frame. This keeps query iteration stable for the entire frame: you can spawn entities from inside a system without invalidating the views you are iterating.
@@ -196,6 +210,109 @@ for ev in world.read_events(ScoredEvent):
 ```
 
 Each frame starts with all event queues cleared.
+
+## Common patterns
+
+Patterns that come up over and over when building real games on Keel (Pong, Asteroids, Brick Breaker). Reach for them before reinventing.
+
+### Singleton components
+
+One entity that holds the game's top-level state. Spawn once, read anywhere with `query_one`.
+
+```python
+@keel.component
+class GameState:
+    score: int = 0
+    lives: int = 3
+    game_over: bool = False
+
+world.spawn(GameState())
+world.flush()
+
+# Read anywhere
+gs = world.query_one(GameState)
+score = gs['score'] if gs else 0
+```
+
+### Side tables for non-numpy data
+
+Components are numpy-backed and cannot store strings, tuples, or dicts. The supported workaround is a module-level dict keyed by entity ID (the same pattern Keel itself uses for `TextLabel` text content):
+
+```python
+BULLET_VEL: dict[int, tuple[float, float]] = {}
+
+bullet = world.spawn(
+    keel.Transform2D(x=x, y=y),
+    keel.RigidBody2D(body_type=keel.BodyType.DYNAMIC),
+    Bullet(),
+)
+world.flush()
+BULLET_VEL[bullet] = (vx, vy)
+```
+
+Remember to delete the entry in your despawn path so the dict does not leak.
+
+### Deferred despawn queue
+
+Never despawn from inside a query loop. Queue the IDs and process them in a dedicated system:
+
+```python
+DESPAWN_QUEUE: list[int] = []
+
+def queue_despawn(eid: int) -> None:
+    if eid not in DESPAWN_QUEUE:
+        DESPAWN_QUEUE.append(eid)
+
+@app.system(keel.Phase.POST_UPDATE)
+def despawn_system(world, dt):
+    for eid in DESPAWN_QUEUE:
+        if world.is_alive(eid):
+            world.despawn(eid)
+            world.flush()
+    DESPAWN_QUEUE.clear()
+```
+
+### Entity ID tracking for collision detection
+
+`CollisionEvent2D` carries entity IDs, not component types. Track which entities are which at spawn time so the collision system can dispatch in O(1):
+
+```python
+BULLET_ENTITIES: set[int] = set()
+ENEMY_ENTITIES:  set[int] = set()
+
+bullet = world.spawn(...)
+BULLET_ENTITIES.add(bullet)
+
+@app.system(keel.Phase.POST_UPDATE)
+def collision_system(world, dt):
+    for event in world.read_events(keel.CollisionEvent2D):
+        a, b = event.entity_a, event.entity_b
+        if a in BULLET_ENTITIES and b in ENEMY_ENTITIES:
+            handle_hit(a, b)
+        elif b in BULLET_ENTITIES and a in ENEMY_ENTITIES:
+            handle_hit(b, a)
+```
+
+### Manual ball / projectile physics
+
+pymunk's `elasticity` is reliable at modest speeds but tunnels through walls past roughly 1500 px/s on a 60 Hz step (see Troubleshooting). For arcade-style games where the ball is a single fast-moving entity, manage its motion yourself and push the result into Physics2D each tick so `CollisionEvent2D` still fires for detection:
+
+```python
+BALL_VEL = {'x': 0.0, 'y': 0.0}
+BALL_POS = {'x': 400.0, 'y': 300.0}
+
+@app.system(keel.Phase.PRE_UPDATE)
+def move_ball(world, dt):
+    BALL_POS['x'] += BALL_VEL['x'] * dt
+    BALL_POS['y'] += BALL_VEL['y'] * dt
+
+    if BALL_POS['x'] < RADIUS:
+        BALL_POS['x'] = RADIUS
+        BALL_VEL['x'] = abs(BALL_VEL['x'])
+
+    phys.set_position(ball_entity, BALL_POS['x'], BALL_POS['y'])
+    phys.set_velocity(ball_entity, BALL_VEL['x'], BALL_VEL['y'])
+```
 
 ## Input
 
@@ -282,6 +399,41 @@ Raw integers still work for backwards compatibility (`keel.BodyType.STATIC == 1`
 - Both bridges run at `Phase.POST_UPDATE`. ECS data is the source of truth on the way in; physics owns the result on the way out.
 
 `CollisionEvent2D` and `CollisionEvent3D` only fire when at least one body is dynamic. Two kinematic or two static bodies that overlap will not emit events. This is pymunk/Bullet behavior, not a Keel bug. Make at least one side dynamic if you need the collision to be detected. Keel prints a one-time `UserWarning` the first time a second kinematic body joins `Physics2D` to flag the trap early.
+
+#### Choosing body types for games
+
+The single most common Keel bug is "my collision callback never fires." Almost always the answer is body type. Use this guide:
+
+- `keel.BodyType.DYNAMIC` for anything that needs to collide with other things and generate `CollisionEvent2D`: bullets, balls, enemies, projectiles, particles.
+- `keel.BodyType.STATIC` for immovable geometry: walls, floors, fixed platforms, level boundaries.
+- `keel.BodyType.KINEMATIC` for entities that you move manually frame-to-frame (the player's paddle, a moving platform driven by gameplay code, the player character if you handle movement yourself). Kinematic bodies push dynamic bodies aside on contact but **do not** emit `CollisionEvent2D` against other kinematic or static bodies. If two kinematic bodies must detect each other, change at least one to DYNAMIC.
+
+A typical Pong-style setup:
+
+```python
+# Ball: needs to register every paddle / wall hit, so DYNAMIC.
+ball = world.spawn(
+    keel.Transform2D(x=400.0, y=300.0),
+    keel.RigidBody2D(mass=1.0, body_type=keel.BodyType.DYNAMIC),
+    keel.Collider2D(shape_type=keel.ShapeType2D.CIRCLE, radius=8.0, elasticity=1.0),
+)
+
+# Paddle: moved manually by input, so KINEMATIC.
+paddle = world.spawn(
+    keel.Transform2D(x=40.0, y=300.0),
+    keel.RigidBody2D(body_type=keel.BodyType.KINEMATIC),
+    keel.Collider2D(shape_type=keel.ShapeType2D.BOX, width=15.0, height=80.0, elasticity=1.0),
+)
+
+# Walls: never move, so STATIC.
+top_wall = world.spawn(
+    keel.Transform2D(x=400.0, y=595.0),
+    keel.RigidBody2D(body_type=keel.BodyType.STATIC),
+    keel.Collider2D(shape_type=keel.ShapeType2D.BOX, width=800.0, height=10.0, elasticity=1.0),
+)
+```
+
+That arrangement gets ball-vs-paddle and ball-vs-wall collision events. Paddle-vs-wall does not fire (kinematic-vs-static), which is exactly what you want, since the gameplay code is already clamping the paddle's position.
 
 ### Text rendering
 
@@ -421,6 +573,49 @@ mygame/
 - [ ] World-space text (text that moves with the camera)
 - [ ] 3D audio / positional audio
 - [ ] PhysicsMaterial system
+
+## Troubleshooting
+
+### `CollisionEvent2D` never fires
+
+Two kinematic bodies do not generate collision events in pymunk. Change at least one body to `keel.BodyType.DYNAMIC`. See "Choosing body types for games" under Features → Physics for the full guide.
+
+### Score or game state not updating
+
+`world.query()` returns numpy array *views*. Writing `gs['score'] = gs['score'] + 1` works but feels confusing, and reading `gs['score']` returns a numpy array, not a Python int. For singleton components use `world.query_one()`, which returns plain Python scalars:
+
+```python
+gs = world.query_one(GameState)
+print(gs['score'])      # int, not numpy.int64
+```
+
+`query_one` is read-only. To write back, use `world.set(entity_id, GameState, score=42)`. If you are using the raw iterator and want to mutate a single row in place, index into the column: `gs['score'][0] += 1`, not `gs['score'] += 1`.
+
+### Ball passes through walls at high speed
+
+This is "tunneling": the ball moves more than its own diameter in a single physics tick, so pymunk's continuous collision check misses the wall. The probe in Keel's test suite shows clean reflective bouncing at 100 px/s but tunneling past roughly 1500 px/s on a 60 Hz step.
+
+Workarounds, in order of effort: reduce ball speed, reduce `FIXED_DT`, or follow the "Manual ball / projectile physics" pattern under Common patterns (manage position yourself and only use `CollisionEvent2D` for detection).
+
+### Text not visible
+
+Text renders in screen space. `y=0` is the **top** of the screen and y grows downward. A label at `y=10` appears 10 pixels from the top, not 10 pixels from the bottom. The label position is the text baseline, so if the font is 28 pixels tall and you place the label at `y=0`, the glyphs draw upward into negative y and clip. Add the font size to your label y to keep the first row of text on screen.
+
+### `import keel` fails with "module not found"
+
+The PyPI package name is `keelpy`. The import name is `keel`. Run:
+
+```bash
+pip install keelpy
+```
+
+Then in code:
+
+```python
+import keel
+```
+
+If you installed from a clone, run `pip install -e .` from the repo root and check that no other `keel.py` file is shadowing the package on your `PYTHONPATH`.
 
 ## License
 

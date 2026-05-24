@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "keelpy"
-version = "0.8.1"
+version = "0.8.2"
 description = "Keel — a Python ECS game engine"
 requires-python = ">=3.10"
 dependencies = [

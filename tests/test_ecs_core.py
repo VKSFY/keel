@@ -637,3 +637,176 @@ def test_world_repr_shows_entity_and_archetype_counts():
     rep = repr(w)
     assert "entities=2" in rep
     assert "archetypes=2" in rep
+
+
+# ---------------------------------------------------------------------------
+# query_one — singleton-component reader returning plain Python scalars
+# ---------------------------------------------------------------------------
+
+@component
+class GameState:
+    """Sample singleton component for query_one tests."""
+    score: int = 0
+    multiplier: float = 1.5
+    game_over: bool = False
+
+
+def test_query_one_returns_none_when_no_entity_has_component():
+    w = World()
+    assert w.query_one(GameState) is None
+    w.spawn(Position())
+    w.flush()
+    assert w.query_one(GameState) is None
+
+
+def test_query_one_returns_first_entity_when_multiple_exist():
+    w = World()
+    w.spawn(GameState(score=10))
+    w.spawn(GameState(score=20))
+    w.flush()
+    gs = w.query_one(GameState)
+    assert gs is not None
+    assert gs["score"] == 10
+
+
+def test_query_one_returns_python_scalars_not_numpy():
+    w = World()
+    w.spawn(GameState(score=42, multiplier=3.25, game_over=True))
+    w.flush()
+    gs = w.query_one(GameState)
+    assert gs is not None
+    # Python int (not numpy.int64): bool is a subclass of int in Python,
+    # so exclude bool explicitly.
+    assert isinstance(gs["score"], int) and not isinstance(gs["score"], bool)
+    assert type(gs["score"]).__module__ == "builtins"
+    # Python float (not numpy.float64).
+    assert isinstance(gs["multiplier"], float)
+    assert type(gs["multiplier"]).__module__ == "builtins"
+    # Python bool (not numpy.bool_).
+    assert isinstance(gs["game_over"], bool)
+    assert type(gs["game_over"]).__module__ == "builtins"
+
+
+def test_query_one_int_value_is_int_compatible():
+    """Reading + arithmetic + comparison must work without [0] indexing."""
+    w = World()
+    w.spawn(GameState(score=10))
+    w.flush()
+    gs = w.query_one(GameState)
+    assert gs is not None
+    assert int(gs["score"]) == 10
+    assert gs["score"] + 1 == 11
+    assert gs["score"] > 5
+
+
+def test_query_one_bool_value_works_in_if_statement():
+    """The headline bug from real games: `if gs['game_over']:` must work cleanly."""
+    w = World()
+    w.spawn(GameState(game_over=True))
+    w.flush()
+    gs = w.query_one(GameState)
+    assert gs is not None
+    # The literal pattern users write that broke under raw query():
+    if gs["game_over"]:
+        ok = True
+    else:
+        ok = False
+    assert ok is True
+
+
+def test_query_one_does_not_write_back_to_ecs():
+    """Mutating the returned dict is a no-op (use world.set to write)."""
+    w = World()
+    eid = w.spawn(GameState(score=10))
+    w.flush()
+    gs = w.query_one(GameState)
+    assert gs is not None
+    gs["score"] = 999
+    # Re-read: storage is unchanged.
+    fresh = w.query_one(GameState)
+    assert fresh is not None
+    assert fresh["score"] == 10
+    # Confirm world.get also reads 10.
+    assert w.get(eid, GameState) == {"score": 10, "multiplier": 1.5, "game_over": False}
+
+
+def test_query_one_on_list_backed_component():
+    """Components with non-numpy fields (string) still work via the list fallback."""
+    w = World()
+    w.spawn(Name(label="hello"))
+    w.flush()
+    n = w.query_one(Name)
+    assert n is not None
+    assert n["label"] == "hello"
+
+
+# ---------------------------------------------------------------------------
+# Without / Optional combination + empty-query edge cases
+# ---------------------------------------------------------------------------
+
+def test_query_combining_without_and_optional_in_same_query():
+    """Without[] + Optional[] together: filter excludes one type, includes the other if present."""
+    w = World()
+    a = w.spawn(Position(x=1.0), Velocity(x=10.0))                # P + V
+    b = w.spawn(Position(x=2.0), Velocity(x=20.0), Health(hp=5))  # P + V + H (excluded by Without[Health])
+    c = w.spawn(Position(x=3.0))                                  # P only
+    w.flush()
+
+    seen: dict[float, float | None] = {}
+    for pos, vel in w.query(Position, Without[Health], Optional[Velocity]):
+        for i in range(len(pos)):
+            x = float(pos["x"][i])
+            seen[x] = float(vel["x"][i]) if vel is not None else None
+
+    # b (x=2.0) was excluded by Without[Health].
+    assert seen == {1.0: 10.0, 3.0: None}
+    _ = (a, b, c)
+
+
+def test_query_with_no_matching_entities_yields_nothing_no_error():
+    """Empty query loops must execute zero times without raising."""
+    w = World()
+    # No entity has Velocity; w.spawn returns ids we ignore here.
+    w.spawn(Position())
+    w.spawn(Position(), Health())
+    w.flush()
+
+    iterations = 0
+    for (vel,) in w.query(Velocity):
+        iterations += 1
+    assert iterations == 0
+
+    # Same against an entirely empty world.
+    w2 = World()
+    count = 0
+    for _ in w2.query(Position):
+        count += 1
+    assert count == 0
+
+
+def test_query_without_excludes_entities_with_the_marker_component():
+    """Tighter assertion than the existing test: Without[T] never yields rows with T present."""
+    w = World()
+    only_pos = w.spawn(Position())
+    pos_vel = w.spawn(Position(), Velocity())
+    w.flush()
+
+    matched = set()
+    for arch in w.query(Position, Without[Velocity]).archetypes():
+        for eid in arch.entities[: arch.length]:
+            matched.add(int(eid))
+    assert matched == {only_pos}
+    assert pos_vel not in matched
+
+
+def test_query_optional_returns_none_column_for_missing_archetype():
+    """Optional[T] yields None (not a fake empty array) when the archetype lacks T."""
+    w = World()
+    w.spawn(Position())  # no Velocity
+    w.flush()
+    seen_none = False
+    for pos, vel in w.query(Position, Optional[Velocity]):
+        assert pos is not None
+        if vel is None:
+            seen_none = True
+    assert seen_none, "expected at least one archetype to yield vel=None"

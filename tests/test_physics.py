@@ -887,3 +887,166 @@ def test_enums_visible_from_top_level_keel():
     assert ShapeType2D is keel.ShapeType2D
     assert ShapeType3D is keel.ShapeType3D
 
+
+# ---------------------------------------------------------------------------
+# Physics2D sync edge cases (v0.8.2)
+# ---------------------------------------------------------------------------
+#
+# These verify Physics2D handles realistic misuse without crashing: missing
+# Transform2D, mid-frame despawn, set_position on a despawned entity, and
+# multiple entities sharing collision filter bits.
+
+def test_physics2d_warns_on_rigidbody_without_transform2d():
+    """RigidBody2D + Collider2D without Transform2D: skipped, one-time warn."""
+    phys = Physics2D()
+    world = World()
+    eid = world.spawn(
+        RigidBody2D(mass=1.0),
+        Collider2D(shape_type=S2_CIRCLE, radius=10.0),
+    )
+    world.flush()
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        phys.sync_to_physics(world)
+
+    msgs = [str(w.message) for w in caught if issubclass(w.category, RuntimeWarning)]
+    assert any(f"entity {eid}" in m and "Transform2D" in m for m in msgs), msgs
+    # Entity must not have been created in pymunk.
+    assert eid not in phys._bodies
+    phys.cleanup()
+
+
+def test_physics2d_despawn_before_next_sync_cleans_up_body():
+    """Despawning an entity at frame end leaves no dangling pymunk body."""
+    phys = Physics2D()
+    world = World()
+    eid = world.spawn(
+        Transform2D(x=0.0, y=0.0),
+        RigidBody2D(mass=1.0),
+        Collider2D(shape_type=S2_CIRCLE, radius=10.0),
+    )
+    world.flush()
+    phys.sync_to_physics(world)
+    phys.step(1.0 / 60.0)
+    assert eid in phys._bodies
+
+    # Simulate "despawn during a frame, flush at end" — physics next-frame
+    # sync_to_physics must drop the orphaned pymunk body, not crash.
+    world.despawn(eid)
+    world.flush()
+    phys.sync_to_physics(world)
+    phys.step(1.0 / 60.0)
+    phys.sync_from_physics(world)
+
+    assert eid not in phys._bodies
+    phys.cleanup()
+
+
+def test_physics2d_set_position_on_despawned_entity_is_noop():
+    """set_position must not crash when the target entity is gone."""
+    phys = Physics2D(world=World())
+    # Entity that never existed.
+    phys.set_position(99999, 100.0, 200.0)
+    # Entity that existed but was cleaned up.
+    world = World()
+    phys.world = world
+    eid = world.spawn(
+        Transform2D(x=0.0, y=0.0),
+        RigidBody2D(mass=1.0),
+        Collider2D(shape_type=S2_CIRCLE, radius=10.0),
+    )
+    world.flush()
+    phys.sync_to_physics(world)
+    assert eid in phys._bodies
+    world.despawn(eid)
+    world.flush()
+    phys.sync_to_physics(world)
+    assert eid not in phys._bodies
+    # The actual no-op call under test:
+    phys.set_position(eid, 50.0, 60.0)
+    phys.set_velocity(eid, 1.0, 2.0)
+    phys.apply_impulse(eid, 1.0, 2.0)
+    phys.apply_force(eid, 1.0, 2.0)
+    phys.cleanup()
+
+
+def test_physics2d_shared_filter_bits_collide_normally():
+    """Two entities with identical category_bits/mask_bits still collide and emit events."""
+    world = World()
+    phys = Physics2D(gravity_y=0.0, world=world)
+
+    a = world.spawn(
+        Transform2D(x=-50.0, y=0.0),
+        RigidBody2D(mass=1.0, vel_x=100.0),
+        Collider2D(
+            shape_type=S2_CIRCLE, radius=10.0, elasticity=1.0,
+            category_bits=0b0001, mask_bits=0b0001,
+        ),
+    )
+    b = world.spawn(
+        Transform2D(x=50.0, y=0.0),
+        RigidBody2D(mass=1.0, vel_x=-100.0),
+        Collider2D(
+            shape_type=S2_CIRCLE, radius=10.0, elasticity=1.0,
+            category_bits=0b0001, mask_bits=0b0001,
+        ),
+    )
+    world.flush()
+    phys.sync_to_physics(world)
+
+    for _ in range(120):
+        phys.step(1.0 / 60.0)
+    phys._emit_collisions(world)
+
+    events = list(world.read_events(CollisionEvent2D))
+    pair_ids = {(min(e.entity_a, e.entity_b), max(e.entity_a, e.entity_b)) for e in events}
+    assert (min(a, b), max(a, b)) in pair_ids, pair_ids
+    phys.cleanup()
+
+
+# ---------------------------------------------------------------------------
+# Elasticity behavior (v0.8.2)
+# ---------------------------------------------------------------------------
+#
+# Documents what pymunk's elasticity=1.0 actually delivers at game speeds.
+# At modest speeds (~100 px/s) the bounce is clean. At very high speeds
+# the ball tunnels through the floor — see the README troubleshooting
+# section for the workaround (manage velocity manually).
+
+def test_physics2d_elasticity_bounces_dynamic_off_static():
+    """Dynamic body hitting a static floor at 100 px/s with e=1.0 bounces upward."""
+    world = World()
+    phys = Physics2D(gravity_x=0.0, gravity_y=0.0, world=world)
+
+    world.spawn(
+        Transform2D(x=0.0, y=0.0),
+        RigidBody2D(body_type=B2_STATIC),
+        Collider2D(shape_type=S2_BOX, width=400.0, height=20.0, elasticity=1.0),
+    )
+    ball = world.spawn(
+        Transform2D(x=0.0, y=100.0),
+        RigidBody2D(mass=1.0, body_type=B2_DYNAMIC, vel_y=-100.0),
+        Collider2D(shape_type=S2_CIRCLE, radius=10.0, elasticity=1.0),
+    )
+    world.flush()
+    phys.sync_to_physics(world)
+
+    # Step long enough for the ball to traverse 80px (~48 ticks at 60Hz)
+    # plus contact resolution.
+    for _ in range(120):
+        phys.step(1.0 / 60.0)
+        body = phys._bodies[ball]
+        if body.velocity.y > 0.0:
+            break
+
+    body = phys._bodies[ball]
+    assert body.velocity.y > 0.0, (
+        f"ball did not bounce: final vy={body.velocity.y}, "
+        "expected positive y (upward) after hitting elastic floor"
+    )
+    # Energy conserved within float tolerance.
+    assert abs(body.velocity.y - 100.0) < 1.0, body.velocity.y
+    phys.cleanup()
+
+

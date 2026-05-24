@@ -360,10 +360,13 @@ class Physics2D:
             if n_kin > 1:
                 self._warned_kinematic_pair = True
                 warnings.warn(
-                    "Two or more KINEMATIC bodies in Physics2D — pymunk does "
+                    "Two or more KINEMATIC bodies in Physics2D: pymunk does "
                     "not emit CollisionEvent2D for kinematic-vs-kinematic "
-                    "pairs. Use body_type=0 (DYNAMIC) for entities that need "
-                    "to collide with each other.",
+                    "pairs (this is a pymunk limitation, not a Keel bug). "
+                    "Fix: change one body to keel.BodyType.DYNAMIC so the "
+                    "collision callback fires. See the 'Choosing body types "
+                    "for games' section in the Keel README for the full "
+                    "guide.",
                     UserWarning,
                     stacklevel=2,
                 )
@@ -407,7 +410,7 @@ class Physics2D:
             self._space.remove(body)
 
     def _warn_mismatched_components(self, world: Any) -> None:
-        """Emit one-time warnings for entities with a Collider2D xor a RigidBody2D."""
+        """Emit one-time warnings for entities missing Transform2D, RigidBody2D, or Collider2D."""
         for arch in world.query(Collider2D, Without[RigidBody2D]).archetypes():
             for eid in arch.entities[: arch.length]:
                 eid_int = int(eid)
@@ -427,6 +430,22 @@ class Physics2D:
                 self._mismatch_warned.add(eid_int)
                 warnings.warn(
                     f"Physics2D: entity {eid_int} has RigidBody2D without Collider2D — skipping",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+        # A body without a Transform2D has no position to mirror — the main
+        # sync loop requires all three components and silently skips this
+        # case. Emit a one-time warning so users notice the misconfiguration.
+        for arch in world.query(RigidBody2D, Collider2D, Without[Transform2D]).archetypes():
+            for eid in arch.entities[: arch.length]:
+                eid_int = int(eid)
+                if eid_int in self._mismatch_warned:
+                    continue
+                self._mismatch_warned.add(eid_int)
+                warnings.warn(
+                    f"Physics2D: entity {eid_int} has RigidBody2D + Collider2D "
+                    "without Transform2D — skipping (a body has no position "
+                    "to sync without Transform2D)",
                     RuntimeWarning,
                     stacklevel=2,
                 )
