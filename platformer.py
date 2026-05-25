@@ -190,11 +190,6 @@ spawn_text()
 
 
 # === Systems ===
-#
-# Ordering invariant: player_input MUST be registered (and therefore run)
-# BEFORE reset_on_ground in PRE_UPDATE. ON_GROUND is set by collision_system
-# in POST_UPDATE and consumed by the NEXT tick's player_input; clearing it
-# before the jump check reads it makes Space silently never jump.
 
 # Camera tracks the player horizontally, clamped to the level edges.
 @app.system(keel.Phase.PRE_UPDATE)
@@ -209,7 +204,6 @@ def camera_follow(world, dt):
 
 # Player input: Esc (always), horizontal movement, jump (on ground only).
 # Vy is preserved from pymunk so gravity keeps integrating against the body.
-# Must run BEFORE reset_on_ground.
 @app.system(keel.Phase.PRE_UPDATE)
 def player_input(world, dt):
     # Esc is intentionally handled here too (not only in quit_system) so the
@@ -239,9 +233,10 @@ def player_input(world, dt):
     phys.set_velocity(PLAYER_ENTITY, vx, vy)
 
 
-# Clear ON_GROUND so collision_system has a clean slate this tick. Must run
-# AFTER player_input (which consumes the previous tick's ON_GROUND).
-@app.system(keel.Phase.PRE_UPDATE)
+# Clear ON_GROUND for this tick. `after=player_input` is what guarantees we
+# run AFTER the jump check has consumed the previous tick's ON_GROUND — the
+# scheduler enforces it, no implicit registration-order dependency required.
+@app.system(keel.Phase.PRE_UPDATE, after=player_input)
 def reset_on_ground(world, dt):
     global ON_GROUND
     ON_GROUND = False

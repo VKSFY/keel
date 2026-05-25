@@ -317,10 +317,18 @@ class World:
     # Systems — phase-ordered functions the scheduler runs each tick.
     # ----------------------------------------------------------------------
 
-    def system(self, phase: Phase) -> Callable[[Callable], Callable]:
-        """Decorator: register the wrapped function as a system in `phase`."""
+    def system(
+        self,
+        phase: Phase,
+        after: Callable | list[Callable] | tuple[Callable, ...] | None = None,
+    ) -> Callable[[Callable], Callable]:
+        """Decorator: register the wrapped function as a system in `phase`.
+
+        `after` is an optional system fn (or list of fns) that must run before
+        this one within the same phase. See Scheduler.register for details.
+        """
         def decorator(fn: Callable) -> Callable:
-            self.scheduler.register(phase, fn)
+            self.scheduler.register(phase, fn, after=after)
             return fn
         return decorator
 

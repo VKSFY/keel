@@ -31,6 +31,7 @@ from .components3d import (
     SHAPE_TYPE_SPHERE as SHAPE_TYPE_3D_SPHERE,
 )
 from .enums import BodyType, ShapeType2D, ShapeType3D
+from .material import PhysicsMaterial2D
 from .physics2d import Physics2D
 # Physics3D imports pybullet lazily and PYBULLET_AVAILABLE reflects the
 # import outcome. Importing Physics3D itself never raises — Physics3D
@@ -51,6 +52,7 @@ __all__ = [
     "PYBULLET_AVAILABLE",
     "Physics2D",
     "Physics3D",
+    "PhysicsMaterial2D",
     "RigidBody2D",
     "RigidBody3D",
     "SHAPE_TYPE_2D_BOX",
@@ -62,9 +64,25 @@ __all__ = [
     "SHAPE_TYPE_3D_SPHERE",
     "ShapeType2D",
     "ShapeType3D",
+    "apply_material",
     "setup_physics_2d",
     "setup_physics_3d",
 ]
+
+
+def apply_material(world: Any, entity_id: int, material: PhysicsMaterial2D) -> None:
+    """Apply a PhysicsMaterial2D to an entity before it is synced to physics.
+
+    Call immediately after `world.spawn(...)` + `world.flush()`. The material's
+    friction and elasticity override the Collider2D component's values when
+    Physics2D builds the pymunk shape on the next sync_to_physics.
+
+    `world` is accepted for forward compatibility (future per-world material
+    isolation); the current implementation uses a process-level dict.
+    """
+    from .physics2d import set_material
+    _ = world  # reserved for future per-world routing
+    set_material(entity_id, material)
 
 
 def _register_shutdown_hook(app: Any, hook) -> None:

@@ -1255,3 +1255,124 @@ def test_kinematic_vs_static_no_collision_event():
     phys.cleanup()
 
 
+# ---------------------------------------------------------------------------
+# PhysicsMaterial2D (v0.8.5)
+# ---------------------------------------------------------------------------
+#
+# PhysicsMaterial2D is a reusable (friction, elasticity) preset; apply_material()
+# attaches one to an entity so Physics2D uses its values when building the
+# pymunk shape, overriding the Collider2D component's friction/elasticity.
+
+from keel.physics import PhysicsMaterial2D, apply_material
+from keel.physics.physics2d import _entity_materials
+
+
+def test_physics_material_bouncy_is_bouncy():
+    assert keel.PhysicsMaterial2D.BOUNCY.elasticity > 0.8
+
+
+def test_physics_material_ice_is_slippery():
+    assert keel.PhysicsMaterial2D.ICE.friction < 0.1
+
+
+def test_physics_material_all_presets_in_unit_range():
+    for name in ("DEFAULT", "BOUNCY", "ICE", "RUBBER", "WOOD", "METAL"):
+        m = getattr(keel.PhysicsMaterial2D, name)
+        assert 0.0 <= m.friction <= 1.0, f"{name}.friction out of [0,1]: {m.friction}"
+        assert 0.0 <= m.elasticity <= 1.0, f"{name}.elasticity out of [0,1]: {m.elasticity}"
+
+
+def test_apply_material_overrides_collider_elasticity():
+    """apply_material() before sync_to_physics overrides the component value."""
+    _entity_materials.clear()
+    world = World()
+    phys = Physics2D(world=world)
+    eid = world.spawn(
+        Transform2D(),
+        RigidBody2D(mass=1.0),
+        # Component-level elasticity=0.0 is what would normally apply.
+        Collider2D(shape_type=S2_CIRCLE, radius=5.0, elasticity=0.0, friction=0.0),
+    )
+    world.flush()
+    apply_material(world, eid, keel.PhysicsMaterial2D.BOUNCY)
+    phys.sync_to_physics(world)
+    # Override wins: the pymunk shape has BOUNCY's elasticity, not 0.0.
+    assert phys._shapes[eid].elasticity == pytest.approx(keel.PhysicsMaterial2D.BOUNCY.elasticity)
+    phys.cleanup()
+
+
+def test_apply_material_bouncy_round_trip():
+    """BOUNCY: pymunk shape elasticity matches the preset's elasticity."""
+    _entity_materials.clear()
+    world = World()
+    phys = Physics2D(world=world)
+    eid = world.spawn(
+        Transform2D(),
+        RigidBody2D(mass=1.0),
+        Collider2D(shape_type=S2_BOX, width=1.0, height=1.0),
+    )
+    world.flush()
+    apply_material(world, eid, keel.PhysicsMaterial2D.BOUNCY)
+    phys.sync_to_physics(world)
+    assert phys._shapes[eid].elasticity == pytest.approx(0.9)
+    phys.cleanup()
+
+
+def test_apply_material_ice_round_trip():
+    """ICE: pymunk shape friction matches the preset's friction."""
+    _entity_materials.clear()
+    world = World()
+    phys = Physics2D(world=world)
+    eid = world.spawn(
+        Transform2D(),
+        RigidBody2D(mass=1.0),
+        Collider2D(shape_type=S2_BOX, width=1.0, height=1.0),
+    )
+    world.flush()
+    apply_material(world, eid, keel.PhysicsMaterial2D.ICE)
+    phys.sync_to_physics(world)
+    assert phys._shapes[eid].friction == pytest.approx(0.05)
+    phys.cleanup()
+
+
+def test_apply_material_cleaned_up_on_despawn():
+    """Despawning an entity must remove its _entity_materials row."""
+    _entity_materials.clear()
+    world = World()
+    phys = Physics2D(world=world)
+    eid = world.spawn(
+        Transform2D(),
+        RigidBody2D(mass=1.0),
+        Collider2D(shape_type=S2_BOX, width=1.0, height=1.0),
+    )
+    world.flush()
+    apply_material(world, eid, keel.PhysicsMaterial2D.RUBBER)
+    phys.sync_to_physics(world)
+    assert eid in _entity_materials
+    world.despawn(eid)
+    world.flush()
+    phys.sync_to_physics(world)   # triggers orphan cleanup → _remove_entity
+    assert eid not in _entity_materials
+    phys.cleanup()
+
+
+def test_apply_material_custom_round_trip():
+    """A user-defined PhysicsMaterial2D round-trips onto the pymunk shape."""
+    _entity_materials.clear()
+    custom = PhysicsMaterial2D(friction=0.42, elasticity=0.13)
+    world = World()
+    phys = Physics2D(world=world)
+    eid = world.spawn(
+        Transform2D(),
+        RigidBody2D(mass=1.0),
+        Collider2D(shape_type=S2_CIRCLE, radius=3.0,
+                   elasticity=0.99, friction=0.99),
+    )
+    world.flush()
+    apply_material(world, eid, custom)
+    phys.sync_to_physics(world)
+    assert phys._shapes[eid].friction == pytest.approx(0.42)
+    assert phys._shapes[eid].elasticity == pytest.approx(0.13)
+    phys.cleanup()
+
+

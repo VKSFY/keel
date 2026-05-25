@@ -580,8 +580,6 @@ mygame/
 - [ ] Visual scene editor
 - [ ] World-space text (text that moves with the camera)
 - [ ] 3D audio / positional audio
-- [ ] PhysicsMaterial system
-- [ ] System ordering within a phase (`after=` parameter for `@app.system`)
 
 ## Troubleshooting
 

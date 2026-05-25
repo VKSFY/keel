@@ -1,7 +1,7 @@
 """Keel — a Python game engine. Top-level public surface."""
 from __future__ import annotations
 
-__version__ = "0.8.3"
+__version__ = "0.8.5"
 
 import glfw as _glfw
 import moderngl
@@ -46,7 +46,9 @@ from .physics import CollisionEvent2D as CollisionEvent2D
 from .physics import CollisionEvent3D as CollisionEvent3D
 from .physics import Physics2D as Physics2D
 from .physics import Physics3D as Physics3D
+from .physics import PhysicsMaterial2D as PhysicsMaterial2D
 from .physics import RigidBody2D as RigidBody2D
+from .physics import apply_material as apply_material
 from .physics import RigidBody3D as RigidBody3D
 from .physics import ShapeType2D as ShapeType2D
 from .physics import ShapeType3D as ShapeType3D
@@ -218,10 +220,14 @@ class App:
         """The scheduler driven by App.run."""
         return self._scheduler
 
-    def system(self, phase: Phase):
-        """Decorator: register a system function in the given phase."""
+    def system(self, phase: Phase, after=None):
+        """Decorator: register a system function in the given phase.
+
+        `after` is an optional system fn (or list of fns) that must run before
+        this one within the same phase. See Scheduler.register for details.
+        """
         def decorator(fn):
-            self._scheduler.register(phase, fn)
+            self._scheduler.register(phase, fn, after=after)
             return fn
         return decorator
 
@@ -343,6 +349,7 @@ __all__ = [
     "Phase",
     "Physics2D",
     "Physics3D",
+    "PhysicsMaterial2D",
     "PointLight",
     "PRESS",
     "QueryResult",
@@ -371,6 +378,7 @@ __all__ = [
     "WindowResizeEvent",
     "Without",
     "World",
+    "apply_material",
     "clear_text",
     "dev_tools",
     "get_text",

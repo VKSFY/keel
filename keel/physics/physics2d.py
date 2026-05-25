@@ -30,6 +30,7 @@ from .components2d import (
     CollisionEvent2D,
     RigidBody2D,
 )
+from .material import PhysicsMaterial2D
 
 
 _BODY_TYPE_MAP: dict[int, int] = {
@@ -37,6 +38,23 @@ _BODY_TYPE_MAP: dict[int, int] = {
     BODY_TYPE_STATIC: pymunk.Body.STATIC,
     BODY_TYPE_KINEMATIC: pymunk.Body.KINEMATIC,
 }
+
+
+# Per-entity material overrides. Shared across all Physics2D instances in the
+# process — small state, set by apply_material(), consumed by _create() when
+# building a pymunk shape, cleared by _remove_entity().
+_entity_materials: dict[int, PhysicsMaterial2D] = {}
+
+
+def set_material(entity_id: int, material: PhysicsMaterial2D) -> None:
+    """Associate a PhysicsMaterial2D with an entity.
+
+    Must be called before the entity is synced to physics (typically
+    immediately after world.spawn() + world.flush()). The material's
+    friction and elasticity override the Collider2D component's values
+    when the pymunk shape is created.
+    """
+    _entity_materials[int(entity_id)] = material
 
 
 def _shape_entity_id(shape: pymunk.Shape) -> int:
@@ -371,8 +389,15 @@ class Physics2D:
             body.angular_velocity = float(rbs["ang_vel"][i])
 
         shape = self._create_shape(body, colliders, i)
-        shape.friction = float(colliders["friction"][i])
-        shape.elasticity = float(colliders["elasticity"][i])
+        # A PhysicsMaterial2D applied via apply_material() overrides the
+        # collider's component-level friction / elasticity.
+        material = _entity_materials.get(eid)
+        if material is not None:
+            shape.friction = float(material.friction)
+            shape.elasticity = float(material.elasticity)
+        else:
+            shape.friction = float(colliders["friction"][i])
+            shape.elasticity = float(colliders["elasticity"][i])
         shape.sensor = bool(colliders["sensor"][i])
         shape.filter = pymunk.ShapeFilter(
             categories=int(colliders["category_bits"][i]),
@@ -445,6 +470,7 @@ class Physics2D:
         body = self._bodies.pop(eid, None)
         shape = self._shapes.pop(eid, None)
         self._body_types.pop(eid, None)
+        _entity_materials.pop(eid, None)
         if shape is not None and shape in self._space.shapes:
             self._space.remove(shape)
         if body is not None and body in self._space.bodies:
