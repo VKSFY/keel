@@ -4,6 +4,12 @@
 
 A Python game engine with archetype ECS, built on ModernGL and GLFW.
 
+![PyPI](https://img.shields.io/pypi/v/keelpy)
+![Python](https://img.shields.io/pypi/pyversions/keelpy)
+![License](https://img.shields.io/github/license/VKSFY/keel)
+![Tests](https://img.shields.io/badge/tests-435%20passing-brightgreen)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)
+
 ## Why Keel
 
 Pygame is old, single-threaded, and bound to CPU blits. Panda3D is a Python wrapper around a C++ engine, with the cognitive load that implies. Other Python options stop at hobby scope or no longer maintain a release. None of them provide a modern, data-oriented ECS as the core data model. Keel is for developers who want to stay in Python and write structured game code on top of a real archetype-based ECS. The tradeoff is honest: Python has interpreter overhead, so Keel pushes hot paths into numpy and C extensions (ModernGL, pymunk, pybullet) and exposes the rest as plain Python.
