@@ -4,11 +4,11 @@
 
 A Python game engine with archetype ECS, built on ModernGL and GLFW.
 
-![PyPI](https://img.shields.io/pypi/v/keelpy)
-![Python](https://img.shields.io/pypi/pyversions/keelpy)
-![License](https://img.shields.io/github/license/VKSFY/keel)
-![Tests](https://img.shields.io/badge/tests-435%20passing-brightgreen)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)
+[![PyPI](https://img.shields.io/pypi/v/keelpy)](https://pypi.org/project/keelpy/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green)](https://github.com/VKSFY/keel/blob/main/LICENSE)
+[![Tests](https://img.shields.io/badge/tests-435%20passing-brightgreen)](https://github.com/VKSFY/keel)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com/VKSFY/keel)
 
 ## Why Keel
 
