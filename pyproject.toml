@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "keelpy"
-version = "0.8.3"
+version = "0.8.4"
 description = "Keel — a Python ECS game engine"
 requires-python = ">=3.10"
 dependencies = [
@@ -16,6 +16,13 @@ dependencies = [
     "pymunk>=7.0",
     "freetype-py>=2.3",
     "miniaudio>=1.59",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
 ]
 
 [project.optional-dependencies]
