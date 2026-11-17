@@ -10,7 +10,7 @@ A Python game engine with archetype ECS, built on ModernGL and GLFW.
 [![Tests](https://img.shields.io/badge/tests-451%20passing-brightgreen)](https://github.com/VKSFY/keel)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com/VKSFY/keel)
 
-📖 [Documentation](https://mintlify.wiki/VKSFY/keel)
+📖 [Documentation](https://vksfy-keel.mintlify.site/)
 
 ## Why Keel
 
